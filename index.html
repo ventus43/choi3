@@ -145,6 +145,37 @@
       background: var(--surface);
     }
 
+    /* 등록·수정 가능한 탭 — 우측으로 분리하고 색상(accent)으로 구분 */
+    .tabbar-edit{
+      display:flex;
+      align-items:flex-end;
+      gap: 4px;
+      margin-left: auto;
+      padding-left: 14px;
+      border-left: 1px dashed var(--border);
+    }
+    .tabbar-edit-label{
+      align-self:center;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      color: var(--accent);
+      white-space: nowrap;
+      padding: 0 8px 4px 2px;
+    }
+    .tab-edit{
+      background: var(--accent-dim);
+      color: #8A5E1F;
+      border-color: #E4CE9C;
+    }
+    .tab-edit:hover{ background: #EFDCB6; color: #6E4A17; }
+    .tab-edit.active{
+      background: var(--surface);
+      color: var(--accent);
+      border-color: var(--border);
+      box-shadow: 0 -2px 0 var(--accent) inset;
+    }
+
     .stage{
       max-width: 1320px;
       margin: 0 auto 80px;
@@ -471,6 +502,9 @@
       }
       .tabbar::-webkit-scrollbar{ display: none; }
       .tab{ flex: 0 0 auto; white-space: nowrap; padding: 10px 13px 12px; font-size: 12.5px; }
+      /* 가로 스크롤 컨테이너에선 auto 마진이 어색 — 구분선만 유지 */
+      .tabbar-edit{ margin-left: 4px; padding-left: 10px; flex: 0 0 auto; }
+      .tabbar-edit-label{ display: none; }
 
       .stage{ padding: 0 10px; }
       .panel{ padding: 14px 10px 18px; }
@@ -929,9 +963,12 @@
   <button class="tab active" data-tab="zonestat">섭외자 리스트 <span class="count" id="count-zonestat">0</span></button>
   <button class="tab" data-tab="meetsched">만남 일정 <span class="count" id="count-meetsched">0</span></button>
   <button class="tab" data-tab="check">TM 현황 <span class="count" id="count-check">0</span></button>
-  <button class="tab" data-tab="schedule">일정 목록 <span class="count" id="count-schedule">0</span></button>
-  <button class="tab" data-tab="outreach">창출 목록 <span class="count" id="count-outreach">0</span></button>
-  <button class="tab" data-tab="member">구역 관리 <span class="count" id="count-member">0</span></button>
+  <div class="tabbar-edit">
+    <span class="tabbar-edit-label">등록 · 수정</span>
+    <button class="tab tab-edit" data-tab="schedule">일정 목록 <span class="count" id="count-schedule">0</span></button>
+    <button class="tab tab-edit" data-tab="outreach">창출 목록 <span class="count" id="count-outreach">0</span></button>
+    <button class="tab tab-edit" data-tab="member">구역 관리 <span class="count" id="count-member">0</span></button>
+  </div>
 </div>
 
 <div class="stage">

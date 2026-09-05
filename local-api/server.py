@@ -238,6 +238,8 @@ def outreach_delete(ntt_id):
 
 
 # ── /check  (CHOIHIRE read-only, different view) ─────────────────────────────
+# TM 현황에는 "진행 여부 = 선택" 인원만 노출한다.
+# PRG=선택('' 또는 NULL) / 진행 / 중단 이므로, 진행·중단이 아닌 인원만 조회.
 
 def hire_to_check(row):
     return {
@@ -257,7 +259,12 @@ def check_list():
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM CHOIHIRE WHERE DEL_YN = 'N' ORDER BY MEET_DATE DESC")
+            cur.execute(
+                "SELECT * FROM CHOIHIRE"
+                " WHERE DEL_YN = 'N'"
+                "   AND (PRG IS NULL OR PRG NOT IN ('진행', '중단'))"
+                " ORDER BY MEET_DATE DESC"
+            )
             return jsonify([hire_to_check(r) for r in cur.fetchall()])
     finally:
         conn.close()
