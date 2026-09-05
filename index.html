@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>최강3 관리 시스템</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <style>
+    @import url('https://cdn.jsdelivr.net/npm/jetbrains-mono@1.0.6/css/jetbrains-mono.css');
+    @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2-variations');
+      font-weight: 45 920;
+    }
+
+    :root{
+      --bg: #FAF7EF;
+      --surface: #FFFFFF;
+      --surface-2: #F3EFE2;
+      --ink: #262A20;
+      --ink-soft: #6B6F5F;
+      --primary: #2F5233;
+      --primary-light: #4C7A52;
+      --primary-dim: #E3EAE0;
+      --accent: #C1862F;
+      --accent-dim: #F3E4C6;
+      --danger: #A9452F;
+      --danger-dim: #F3E0D6;
+      --border: #E4DFCE;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(38,42,32,0.06), 0 6px 20px rgba(38,42,32,0.05);
+    }
+
+    *{ box-sizing: border-box; }
+    html,body{ margin:0; padding:0; }
+    body{
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      font-weight: 450;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono{ font-family: 'JetBrains Mono', 'Pretendard', monospace; }
+
+    /* ---------- 백오피스 비밀번호 게이트 ---------- */
+    #auth-gate{
+      position:fixed; inset:0; z-index:9999;
+      background: var(--bg);
+      display:flex; align-items:center; justify-content:center;
+      padding: 20px;
+    }
+    .auth-box{
+      width:100%; max-width: 320px;
+      background: var(--surface); border:1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 28px 24px; text-align:center;
+    }
+    .auth-title{ font-size:18px; font-weight:800; margin-bottom:6px; }
+    .auth-sub{ font-size:12.5px; color:var(--ink-soft); margin:0 0 16px; }
+    #auth-pw{
+      width:100%; font-family:inherit; font-size:14px; padding:10px 12px;
+      border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--ink);
+      margin-bottom: 10px; text-align:center;
+    }
+    #auth-pw:focus{ outline:none; border-color:var(--primary); box-shadow: 0 0 0 3px rgba(47,82,51,0.12); }
+    .auth-error{ font-size:12px; color:var(--danger); margin-bottom:10px; display:none; }
+    .auth-error.show{ display:block; }
+    #auth-submit{ width:100%; justify-content:center; }
+
+    /* ---------- header ---------- */
+    .app-header{
+      padding: 28px 6px 0;
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+    .brand{
+      display:flex; align-items:baseline; gap: 10px;
+      margin-bottom: 4px;
+    }
+    .brand .glyph{
+      font-size: 22px;
+      color: var(--accent);
+    }
+    .brand h1{
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+    .brand .tagline{
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.02em;
+    }
+    .header-sub{
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin: 10px 0 22px;
+    }
+
+    /* ---------- ledger tabs (signature element) ---------- */
+    .tabbar{
+      display:flex;
+      gap: 4px;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 6px;
+      position: relative;
+    }
+    .tab{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      background: var(--surface-2);
+      color: var(--ink-soft);
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 11px 20px 13px;
+      border-radius: 10px 10px 0 0;
+      position: relative;
+      top: 1px;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      transition: background .15s ease, color .15s ease, transform .15s ease;
+    }
+    .tab .count{
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      margin-left: 6px;
+      color: inherit;
+      opacity: .65;
+    }
+    .tab:hover{ background: #ECE7D6; color: var(--ink); }
+    .tab.active{
+      background: var(--surface);
+      color: var(--primary);
+      border-color: var(--border);
+      box-shadow: 0 -2px 0 var(--primary) inset;
+    }
+    .tab.active::after{
+      content:"";
+      position:absolute; left:0; right:0; bottom:-1px; height:2px;
+      background: var(--surface);
+    }
+
+    .stage{
+      max-width: 1320px;
+      margin: 0 auto 80px;
+      padding: 0 6px;
+    }
+    .panel{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 10px 10px 10px;
+      box-shadow: var(--shadow);
+      padding: 16px 8px 20px;
+    }
+    .panel-head{
+      display:flex; justify-content:space-between; align-items:flex-end;
+      gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .panel-head h2{
+      font-size: 16px; font-weight: 800; margin:0 0 4px;
+    }
+    .panel-head p{
+      margin:0; font-size: 12.5px; color: var(--ink-soft);
+    }
+
+    .btn{
+      appearance:none; border:none; cursor:pointer; font-family:inherit;
+      font-weight: 700; font-size: 13px; border-radius: 8px;
+      padding: 9px 16px; display:inline-flex; align-items:center; gap:6px;
+      transition: filter .12s ease, transform .05s ease;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn-primary{ background: var(--primary); color: #fff; }
+    .btn-primary:hover{ filter: brightness(1.08); }
+    .btn-ghost{ background: transparent; color: var(--ink-soft); border: 1px dashed var(--border); }
+    .btn-ghost:hover{ color: var(--danger); border-color: var(--danger); }
+    .btn-sm{ padding: 5px 12px; font-size: 13px; }
+    .btn-ghost.active{ border-color: var(--accent); color: var(--accent); }
+    .tm-checks{ display:flex; gap:16px; align-items:center; margin-top:6px; }
+    .tm-checks label{ display:flex; align-items:center; gap:5px; font-size:14px; cursor:pointer; }
+    .meet-list{ margin-top:6px; display:flex; flex-direction:column; gap:3px; }
+    .meet-entry{ font-size:13px; color:var(--ink-soft); }
+    .add-meet-wrap{ padding-top:10px; }
+    .meet-form{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .meet-form input{ flex:1; min-width:120px; }
+    .btn-plus{
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(255,255,255,.22);
+      display:inline-flex; align-items:center; justify-content:center;
+      font-size: 14px; line-height:1;
+    }
+
+    /* ---------- entry cards (outreach) ---------- */
+    .day-group{ margin-bottom: 22px; }
+    .day-group:last-child{ margin-bottom: 0; }
+    .day-label{
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 700; color: var(--primary);
+      background: var(--primary-dim);
+      display:inline-block; padding: 3px 10px; border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .entry-list{ display:flex; flex-direction:column; gap:10px; }
+    .entry-card{
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display:grid;
+      grid-template-columns: auto 1fr minmax(230px, auto);
+      gap: 14px;
+      align-items:center;
+      background: var(--surface);
+    }
+    .entry-zone{
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600; font-size: 12px; color: var(--accent);
+      background: var(--accent-dim);
+      border-radius: 6px;
+      text-align:center;
+      padding: 3px 8px;
+      align-self:center;
+      white-space:nowrap;
+    }
+    .entry-main .name{ font-weight: 700; font-size: 14.5px; }
+    .entry-main .meta{
+      margin-top: 4px; font-size: 12.5px; color: var(--ink-soft);
+      display:flex; flex-wrap:wrap; gap: 4px 12px;
+    }
+    .entry-main .meta span::before{ content:"·"; margin-right:6px; color: var(--border); }
+    .entry-main .meta span:first-child::before{ content:""; margin-right:0; }
+    .people{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .chip{
+      font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+      background: var(--surface-2); color: var(--ink);
+      border: 1px solid var(--border);
+    }
+    .chip.required::before{ content:"필수 · "; color: var(--primary); font-weight:700; }
+    .chip.optional::before{ content:"선택 · "; color: var(--ink-soft); font-weight:700; }
+    .status-pill{
+      font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+      white-space: nowrap;
+    }
+    .status-pill.ongoing{ background: var(--primary-dim); color: var(--primary); }
+    .status-pill.stopped{ background: var(--danger-dim); color: var(--danger); }
+    .status-toggle{
+      appearance:none; border: 1px solid transparent; cursor: pointer; font-family: inherit;
+      transition: filter .12s ease, transform .05s ease;
+    }
+    .status-toggle:hover{ filter: brightness(0.96); border-color: currentColor; }
+    .status-toggle:active{ transform: translateY(1px); }
+    .date-edit-btn{
+      appearance:none; border: 1px dashed var(--border); background: var(--surface-2); color: var(--ink-soft);
+      cursor: pointer; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+      white-space: nowrap; transition: border-color .12s ease, color .12s ease;
+    }
+    .date-edit-btn:hover{ border-color: var(--primary); color: var(--primary); }
+    .date-edit-input{
+      box-sizing: border-box; width: 108px;
+      font-family: inherit; font-size: 11px; padding: 2px 4px; border-radius: 7px;
+      border: 1px solid var(--primary); background: var(--surface); color: var(--ink);
+    }
+    /* 기간별 날짜 조회 컨트롤 (만남 일정 / 일정 목록 패널 헤더) */
+    .date-range{ display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; }
+    .date-range input[type="date"]{
+      width:auto; font-family:inherit; font-size:12px; padding:5px 8px;
+      border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--ink);
+    }
+    .date-range input[type="date"]:focus{ outline:none; border-color:var(--primary); }
+
+    .entry-actions{ display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+    .icon-btn{
+      border:none; background:transparent; cursor:pointer; color: var(--ink-soft);
+      font-size: 15px; padding: 4px;
+    }
+    .icon-btn:hover{ color: var(--danger); }
+
+    .empty{
+      text-align:center; padding: 34px 12px; color: var(--ink-soft); font-size: 13px;
+      border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+
+    /* ---------- add form ---------- */
+    .add-form{
+      margin-top: 16px;
+      border: 1px solid var(--primary-light);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: var(--primary-dim);
+      display:none;
+    }
+    .add-form.open{ display:block; }
+    .form-grid{
+      display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .form-grid.cols-2{ grid-template-columns: 1fr 1fr; }
+    .form-grid .span-2{ grid-column: span 2; }
+    .form-grid .span-4{ grid-column: span 4; }
+    label{
+      display:block; font-size: 11.5px; font-weight: 700; color: var(--ink-soft);
+      margin-bottom: 5px; letter-spacing: 0.01em;
+    }
+    label.req::after{ content:" *"; color: var(--danger); }
+    input, select{
+      width:100%; font-family: inherit; font-size: 13.5px; color: var(--ink);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+      padding: 8px 10px;
+    }
+    input:focus, select:focus{
+      outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(47,82,51,0.12);
+    }
+    .name-pair{
+      grid-column: span 2;
+      display:grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      padding: 10px; border: 1px dashed var(--primary-light); border-radius: 8px;
+      background: rgba(255,255,255,.5);
+    }
+    .name-pair .hint{
+      grid-column: span 2; font-size: 11px; color: var(--primary); font-weight:600; margin-bottom:2px;
+    }
+    .form-actions{ display:flex; justify-content:flex-end; gap: 8px; margin-top: 14px; }
+    .form-error{
+      font-size: 12px; color: var(--danger); margin-top: 8px; display:none; font-weight:600;
+    }
+    .form-error.show{ display:block; }
+
+    /* ---------- schedule tab ---------- */
+    .sched-list{ display:flex; flex-direction:column; gap:10px; }
+    .sched-card{
+      display:grid; grid-template-columns: 96px 1fr auto; gap: 14px; align-items:center;
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px;
+    }
+    .sched-date{
+      text-align:center; background: var(--surface-2); border-radius: 8px; padding: 8px 4px;
+    }
+    .sched-date .d{ font-family:'JetBrains Mono',monospace; font-weight:800; font-size:16px; color: var(--primary); }
+    .sched-date .m{ font-size: 10.5px; color: var(--ink-soft); margin-top:2px; }
+    .sched-main .title{ font-weight:700; font-size:14px; }
+    .sched-main .meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; display:flex; gap:12px; flex-wrap:wrap;}
+    .sched-main .meta span::before{ content:"·"; margin-right:6px; color: var(--border); }
+    .sched-main .meta span:first-child::before{ content:""; }
+
+    /* ---------- schedule tab v2 (날짜별 첫만남/단계만남 표) ---------- */
+    .sched2-daygroup{
+      display:grid; grid-template-columns: 60px 1fr;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow:hidden; margin-bottom: 12px;
+    }
+    .sched2-datecell{
+      background: var(--primary-dim); color: var(--primary);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      font-weight:700; font-size:12.5px; text-align:center; line-height:1.4;
+      padding: 8px 4px; border-right: 1px solid var(--border);
+    }
+    .sched2-datecell .dow{ font-size:10.5px; font-weight:600; opacity:.75; }
+    .sched2-datecell.today{ background: var(--accent-dim); color: var(--accent); }
+    .sched2-body{ padding: 10px 12px; display:flex; flex-direction:column; gap: 12px; }
+    .sched2-section-title{
+      font-size: 11px; font-weight:700; color: var(--ink-soft); margin-bottom: 4px;
+    }
+    /* 첫만남/단계만남 두 표가 같은 컬럼 폭을 쓰도록 고정폭(table-layout:fixed) — 표마다 내용이 달라도 간격이 어긋나지 않음 */
+    .sched2-section{ overflow-x:auto; }
+    .sched2-table{ width:100%; min-width: 760px; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+    .sched2-table th, .sched2-table td{
+      padding: 4px 6px; text-align:left; border-bottom: 1px solid var(--border);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .sched2-table th:first-child, .sched2-table td:first-child{ padding-right: 2px; }
+    .sched2-table th:nth-child(2), .sched2-table td:nth-child(2){ padding-left: 2px; }
+    .sched2-table th{ font-size: 11px; color: var(--ink-soft); font-weight:700; background: var(--surface-2); }
+    .sched2-table tbody tr:last-child td{ border-bottom:none; }
+    .sched2-col-goal{ white-space:normal; overflow:visible; text-overflow:clip; color: var(--ink-soft); }
+    /* 날짜·구역·이름·만남자·상담사(교사)·시간장소·목표·피드백·진행여부·비고 */
+    .sched2-table th:nth-child(1),  .sched2-table td:nth-child(1) { width:118px; }
+    .sched2-table th:nth-child(2),  .sched2-table td:nth-child(2) { width: 46px; }
+    .sched2-table th:nth-child(3),  .sched2-table td:nth-child(3) { width: 60px; }
+    .sched2-table th:nth-child(4),  .sched2-table td:nth-child(4) { width: 80px; padding-right: 4px; }
+    .sched2-table th:nth-child(5),  .sched2-table td:nth-child(5) { width: 56px; padding-left: 4px; }
+    .sched2-table th:nth-child(6),  .sched2-table td:nth-child(6) { width:150px; }
+    .sched2-table th:nth-child(7),  .sched2-table td:nth-child(7) { width:140px; }
+    .sched2-table th:nth-child(8),  .sched2-table td:nth-child(8) { width: 52px; }
+    .sched2-table th:nth-child(9),  .sched2-table td:nth-child(9) { width: 62px; }
+    .sched2-table th:nth-child(10), .sched2-table td:nth-child(10){ width:auto; }
+    /* 시간장소·목표: 평소엔 한 줄 말줄임, 클릭하면 아래로 펼쳐짐(다른 곳 클릭하면 원복) */
+    .sched2-expandable{ cursor:pointer; color: var(--ink-soft); }
+    .sched2-expandable.expanded{ white-space:normal; overflow:visible; text-overflow:clip; background: var(--surface-2); }
+    .sched2-prog-select{
+      appearance: none; -webkit-appearance:none; -moz-appearance:none;
+      font-family: inherit; cursor:pointer; text-align:center;
+      font-size: 11px; font-weight:700; padding: 3px 4px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft);
+      width: 46px;
+    }
+    .sched2-prog-select:focus{ outline:none; border-color: var(--primary); }
+    .sched2-prog-select.prog-confirm{ background: var(--primary-dim); color: var(--primary); border-color: var(--primary-light); }
+    .sched2-prog-select.prog-cancel{ background: var(--danger-dim); color: var(--danger); border-color: #D9A08C; }
+    /* 비고 입력창: 가로로 나열(인풋+변경 버튼), 자리가 부족하면 다음 줄로 감쌈 */
+    .sched2-note-edit{ display:flex; flex-direction:row; align-items:center; gap:6px; flex-wrap:wrap; }
+    .sched2-cancel-input{
+      font-family: inherit; font-size: 11.5px; padding: 3px 7px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+      width: 170px; max-width: 100%;
+    }
+    .sched2-cancel-input:focus{ outline:none; border-color: var(--primary); }
+    .sched2-apply-btn{
+      appearance:none; border:none; cursor:pointer; font-family:inherit;
+      font-size: 11px; font-weight:700; padding: 3px 10px; border-radius: 6px;
+      background: var(--primary); color:#fff;
+      flex: none;
+    }
+    .sched2-fb{
+      appearance:none; border: 1px solid var(--border); cursor:pointer; font-family:inherit;
+      font-size: 10.5px; font-weight:700; padding: 2px 8px; border-radius: 999px;
+      background: var(--surface-2); color: var(--ink-soft);
+    }
+    .sched2-fb.on{ background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+    /* ---------- check tab (read-only dashboard) ---------- */
+    .stat-row{
+      display:grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px;
+    }
+    .stat{
+      border:1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; background: var(--surface-2);
+    }
+    .stat .num{ font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:800; color: var(--primary); }
+    .stat .lbl{ font-size:11.5px; color: var(--ink-soft); margin-top:2px; }
+    table{ width:100%; border-collapse: collapse; font-size: 13px; }
+    thead th{
+      text-align:left; font-size: 11px; color: var(--ink-soft); font-weight:700;
+      padding: 8px 10px; border-bottom: 1px solid var(--border); white-space:nowrap;
+      background: var(--surface-2);
+    }
+    tbody td{ padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align:middle; }
+    tbody tr:hover{ background: var(--surface-2); }
+    .check-tag{
+      font-size: 11px; font-weight:700; padding: 3px 8px; border-radius:6px; display:inline-block;
+    }
+    .check-tag.done{ background: var(--primary-dim); color: var(--primary); }
+    .check-tag.pending{ background: var(--accent-dim); color: var(--accent); }
+
+    .foot-note{
+      max-width: 1080px; margin: 30px auto 0; padding: 0 24px;
+      font-size: 11.5px; color: var(--ink-soft); font-family:'JetBrains Mono',monospace;
+    }
+
+    @media (max-width: 720px){
+      .form-grid{ grid-template-columns: 1fr 1fr; }
+      .form-grid .span-2, .form-grid .span-4{ grid-column: span 2; }
+      .name-pair{ grid-column: span 2; grid-template-columns: 1fr; }
+      .sched-card{ grid-template-columns: 64px 1fr; }
+      .stat-row{ grid-template-columns: repeat(2,1fr); }
+      table{ display:block; overflow-x:auto; white-space:nowrap; }
+      .filter-bar{ flex-wrap: wrap; }
+    }
+
+    /* ── 모바일(6"/6.8" 등, ~560px 이하): 추가·수정 항목 우선 ── */
+    @media (max-width: 560px){
+      .app-header{ padding: 18px 10px 0; }
+      .header-sub{ margin: 8px 0 14px; }
+
+      /* 탭 6개 — 한 줄 유지하되 가로 스크롤로 접근 */
+      .tabbar{
+        padding: 0 10px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .tabbar::-webkit-scrollbar{ display: none; }
+      .tab{ flex: 0 0 auto; white-space: nowrap; padding: 10px 13px 12px; font-size: 12.5px; }
+
+      .stage{ padding: 0 10px; }
+      .panel{ padding: 14px 10px 18px; }
+      .panel-head{ margin-bottom: 14px; gap: 8px; }
+
+      /* 추가/수정 폼: 한 줄에 한 항목, iOS 포커스 시 확대 방지(16px) */
+      .form-grid, .form-grid.cols-2{ grid-template-columns: 1fr; }
+      .form-grid .span-2, .form-grid .span-4{ grid-column: span 1; }
+      .add-form{ padding: 12px; }
+      .add-form input, .add-form select{ font-size: 16px; padding: 10px 12px; }
+      .form-actions{ flex-wrap: wrap; }
+      .form-actions .btn{ flex: 1 1 auto; justify-content: center; }
+
+      /* 인원 설정(수정) 패널 여유 확보 */
+      .pf-role{ width: 34px; }
+      .pf-gu{ width: 52px; }
+
+      /* 진행여부=취소 시 비고 입력: 인풋 폭이 화면을 넘지 않게 */
+      .sched2-cancel-input{ width: 100%; min-width: 140px; }
+    }
+
+    /* ── 일정 목록: 모바일에서 표 → 카드형(3열 배치)
+         col1: 날짜·구역·이름·시간장소   col2: 만남자·상담자·목표·피드백   col3: 진행여부·비고(+취소 입력·변경) ── */
+    @media (max-width: 720px){
+      .sched2-daygroup{ grid-template-columns: 1fr; }
+      .sched2-datecell{
+        flex-direction: row; gap: 6px; padding: 8px 12px;
+        border-right: none; border-bottom: 1px solid var(--border);
+      }
+      .sched2-body{ padding: 10px; }
+      .sched2-section{ overflow-x: visible; }
+
+      .sched2-table{ min-width: 0; display: block; }
+      .sched2-table thead{ display: none; }
+      .sched2-table tbody{ display: block; }
+      .sched2-table tr{
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: repeat(4, auto);
+        column-gap: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border); border-radius: 8px;
+        padding: 8px 10px; margin-bottom: 8px;
+      }
+      .sched2-table td{
+        display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+        width: auto !important; padding: 5px 0 !important;
+        border: none; white-space: normal; overflow: visible;
+        overflow-wrap: anywhere;
+      }
+      /* 셀별 위치 지정 (DOM 순서: 날짜1 구역2 이름3 만남자4 상담자5 시간장소6 목표7 피드백8 진행여부9 비고10) */
+      .sched2-table td:nth-child(1){ grid-column: 1; grid-row: 1; }
+      .sched2-table td:nth-child(2){ grid-column: 1; grid-row: 2; }
+      .sched2-table td:nth-child(3){ grid-column: 1; grid-row: 3; }
+      .sched2-table td:nth-child(6){ grid-column: 1; grid-row: 4; }
+      .sched2-table td:nth-child(4){ grid-column: 2; grid-row: 1; }
+      .sched2-table td:nth-child(5){ grid-column: 2; grid-row: 2; }
+      .sched2-table td:nth-child(7){ grid-column: 2; grid-row: 3; }
+      .sched2-table td:nth-child(8){ grid-column: 2; grid-row: 4; }
+      .sched2-table td:nth-child(9){ grid-column: 3; grid-row: 1; }
+      .sched2-table td:nth-child(10){ grid-column: 3; grid-row: 2 / 5; }
+      /* col1·col2 셀에 세로 구분선 */
+      .sched2-table td:not(:nth-child(9)):not(:nth-child(10)){
+        border-right: 1px solid var(--border); padding-right: 8px !important;
+      }
+      .sched2-table td:nth-child(4), .sched2-table td:nth-child(5),
+      .sched2-table td:nth-child(7), .sched2-table td:nth-child(8),
+      .sched2-table td:nth-child(9), .sched2-table td:nth-child(10){ padding-left: 4px !important; }
+      .sched2-table td::before{
+        content: attr(data-label);
+        font-size: 10.5px; font-weight: 700; color: var(--ink-soft);
+      }
+      .sched2-table td > *{ margin-left: 0; }
+      .sched2-table td .sched2-note-edit{ flex-direction: column; align-items: stretch; width: 100%; gap: 4px; }
+      .sched2-table td .sched2-cancel-input{ width: 100%; min-width: 0; }
+      .sched2-expandable.expanded{ background: transparent; }
+    }
+
+    /* ── 멤버 관리 ── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0 10px;
+      flex-wrap: wrap;
+    }
+    .filter-select {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+      outline: none;
+    }
+    .filter-select:focus { border-color: var(--primary); }
+    .filter-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--ink-soft);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+    }
+    .badge-ta      { background: var(--primary-dim); color: var(--primary); }
+    .badge-mission { background: var(--accent-dim);  color: var(--accent); }
+    .badge-none    { background: var(--surface-2);   color: var(--ink-soft); }
+    td.edit-cell input, td.edit-cell select {
+      width: 100%;
+      border: 1.5px solid var(--primary);
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      background: #fff;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--ink-soft);
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-icon:hover { background: var(--surface-2); color: var(--ink); }
+    .btn-icon.danger:hover { background: var(--danger-dim); color: var(--danger); }
+    .btn-icon.confirm:hover { background: var(--primary-dim); color: var(--primary); }
+
+    /* ── TM 1·2·3차 점검 버튼 (이전 뱃지 스타일) ── */
+    .tm-btn {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: var(--surface-2);
+      color: var(--ink-soft);
+    }
+    .tm-btn.on {
+      background: var(--primary-dim);
+      color: var(--primary);
+    }
+
+    /* ── 섭외 카드 본문: 이름·TM·장소·점검버튼 한 줄 ── */
+    .entry-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 14px;
+    }
+    /* 데스크톱: em-a/em-b/em-d는 투명(자식이 그대로 flow), em-c는 진행·상태 셀렉트를 한 묶음으로 */
+    .entry-main > .em-a, .entry-main > .em-b, .entry-main > .em-d{ display: contents; }
+    .entry-main > .em-c{ display: flex; align-items: center; gap: 6px; }
+    .entry-main .meta-inline,
+    .entry-main .meet-inline {
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      white-space: nowrap;
+    }
+    .entry-main .tm-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    /* 수정 패널: 데스크톱은 우측(액션) 열 아래에 그대로 */
+    .entry-card > .person-form{ grid-column: 3; margin-top: 0; }
+    .entry-main .person-tag {
+      font-size: 12px;
+      color: var(--ink);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 7px;
+      white-space: nowrap;
+    }
+    .entry-main .person-tag + .person-tag { margin-left: 4px; }
+    .prg-select {
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--ink-soft);
+      cursor: pointer;
+      margin-left: 2px;
+    }
+    .prg-select:focus { outline: none; }
+    .prg-select.prg-going {
+      background: #E1ECFB;
+      color: #1D4ED8;
+      border-color: #9DC0F0;
+    }
+    .prg-select.prg-stopped {
+      background: var(--danger-dim);
+      color: var(--danger);
+      border-color: #D9A08C;
+    }
+    .status-select {
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--ink-soft);
+      cursor: pointer;
+    }
+    .status-select:focus { outline: none; border-color: var(--primary); }
+    /* S5/S6일 때 상태 셀렉트 옆에 뜨는 센터(CT) 입력 */
+    .ct-inline{ display:inline-flex; align-items:center; gap:4px; margin-left:2px; }
+    .ct-label{ font-size: 11px; font-weight:700; color: var(--ink-soft); }
+    .ct-input{
+      width: 56px; font-family: inherit; font-size: 12px; padding: 3px 6px;
+      border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--ink);
+    }
+    .ct-input:focus{ outline:none; border-color: var(--primary); }
+
+    /* ── 만남 일정 (compact rows) ── */
+    .ms-list { display: flex; flex-direction: column; gap: 10px; }
+    .ms-daygroup { }
+    .ms-dayhead {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700; color: var(--ink-soft);
+      padding: 2px 6px 3px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ms-dayhead.past  { opacity: .55; }
+    .ms-dayhead.today { color: var(--accent); border-color: var(--accent); }
+    .ms-row {
+      display: grid;
+      grid-template-columns: 40px 30px 80px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 6px;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .ms-row + .ms-row { border-top: 1px solid var(--border); }
+    .ms-row:hover { background: var(--surface-2); }
+    .ms-row.done  { opacity: .6; }
+    .ms-row.cancel .ms-name, .ms-row.cancel .ms-meet { text-decoration: line-through; }
+    .ms-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-soft); }
+    .ms-seq {
+      font-size: 10px; font-weight: 700; color: var(--primary);
+      background: var(--primary-dim); border-radius: 4px;
+      text-align: center; padding: 1px 0;
+    }
+    .ms-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ms-meet { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ms-tag {
+      font-size: 10px; font-weight: 700; padding: 1px 7px;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .ms-tag.wait   { background: var(--surface-2);  color: var(--ink-soft); }
+    .ms-tag.done   { background: var(--primary-dim); color: var(--primary); }
+    .ms-tag.cancel { background: var(--danger-dim);  color: var(--danger); }
+    .ms-empty { font-size: 12.5px; color: var(--ink-soft); padding: 12px 6px; }
+    /* 만남 일정(보기 전용) 표의 피드백·진행여부 뱃지 — 일정 관리와 같은 색, 클릭은 불가 */
+    .ms-view-badge{
+      display:inline-block; font-size: 11px; font-weight:700; padding: 2px 8px;
+      border-radius: 999px; background: var(--surface-2); color: var(--ink-soft);
+    }
+    .ms-view-badge.on{ background: var(--primary-dim); color: var(--primary); }
+    .ms-view-badge.prog-confirm{ background: var(--primary-dim); color: var(--primary); }
+    .ms-view-badge.prog-cancel{ background: var(--danger-dim); color: var(--danger); }
+
+    /* ---------- 구역 현황 (구역 × 상태 매트릭스, 상태별 명단/수치 서브컬럼) ---------- */
+    .zv-wrap{ overflow-x:auto; }
+    .zv-table{ border-collapse: collapse; font-size: 12px; table-layout: auto; }
+    .zv-table th, .zv-table td{
+      border: 1px solid var(--border); padding: 6px 8px; text-align:left; vertical-align:top;
+    }
+    .zv-table thead th{
+      background: var(--surface-2); font-size: 11px; color: var(--ink-soft);
+      text-align:center; white-space:nowrap;
+    }
+    /* .zv-table th/td 기본 규칙(text-align:left)이 명시도(element+class)가 더 높아서
+       아래 단일 클래스들의 text-align:center를 덮어쓰던 문제 — .zv-table으로 명시도를 맞춰서 고정 */
+    .zv-table .zv-rowhead{
+      background: var(--surface-2); font-size:11.5px; font-weight:800; color: var(--primary);
+      text-align:center; vertical-align:middle; white-space:nowrap;
+    }
+    /* 글자가 잘리지 않고 다 보이도록 — 말줄임 없이 필요하면 줄바꿈 */
+    .zv-entry{
+      font-size: 11.5px; line-height:1.5; white-space:normal; overflow:visible;
+      word-break:keep-all; overflow-wrap:break-word;
+    }
+    .zv-table .zv-score-col{
+      text-align:center; color: var(--ink-soft); font-family:'JetBrains Mono', monospace;
+    }
+    .zv-empty{ color: var(--border); font-size:12px; }
+    .zv-table .zv-total{
+      background: var(--accent-dim); color: var(--accent); font-weight:800; text-align:center;
+      vertical-align:middle; font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    }
+    .zv-table tfoot .zv-rowhead{ background: var(--primary-dim); color: var(--primary); }
+
+    /* ── 인원 설정 박스 (인도자/섬김이/교사 + 각 구역) ── */
+    .person-form {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid var(--primary-light);
+      border-radius: 8px;
+      background: var(--primary-dim);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pf-row { display: flex; gap: 8px; align-items: center; }
+    .pf-role {
+      width: 42px; flex: none;
+      font-size: 11px; font-weight: 700; color: var(--ink-soft);
+    }
+    .pf-gu {
+      width: 64px; flex: none;
+      font-family: inherit; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px;
+      background: var(--surface); color: var(--ink);
+    }
+    .pf-name {
+      flex: 1; min-width: 80px;
+      font-family: inherit; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px;
+      background: var(--surface); color: var(--ink);
+    }
+    .pf-gu:focus, .pf-name:focus { outline: none; border-color: var(--primary); }
+    .pf-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* ── 세그먼트 버튼(멤버 구역 필터) ── */
+    .seg-group { display: inline-flex; flex-wrap: wrap; }
+    .seg-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-right-width: 0;
+      background: var(--surface);
+      color: var(--ink-soft);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 11px;
+      cursor: pointer;
+    }
+    .seg-btn:first-child { border-radius: 7px 0 0 7px; }
+    .seg-btn:last-child  { border-radius: 0 7px 7px 0; border-right-width: 1px; }
+    .seg-btn:hover { background: var(--surface-2); color: var(--ink); }
+    .seg-btn.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* ── 일정 카드 (명단|목표 / 날짜|시간·장소) ── */
+    .sched-card2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .sched-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      row-gap: 4px;
+    }
+    .sched-grid > div { padding: 2px 0; }
+    .sc-name { font-weight: 800; font-size: 14px; padding-right: 16px; }
+    .sc-goal { font-size: 13px; color: var(--ink); border-left: 1px solid var(--border); padding-left: 16px; }
+    .sc-date {
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+      font-weight: 700; color: var(--primary); padding-right: 16px;
+    }
+    .sc-place { font-size: 12.5px; color: var(--ink-soft); border-left: 1px solid var(--border); padding-left: 16px; }
+    .sc-dim { color: var(--ink-soft); opacity: .55; }
+
+    /* ============================================================
+       창출 목록 카드 — 모바일 (5열, 각 열 2줄). 이 블록은 .entry-main/.em-* 기본 규칙보다
+       뒤에 있어야 media query가 이김. 구역은 이름 열 위쪽에 표시(별도 열 제거).
+       [구역/이름/시간장소] | [인·섬 / 교] | [진행 / S0~6] | [센터입력 / 확인] | [수정 / 제외]
+       ============================================================ */
+    @media (max-width: 720px){
+      .entry-card{
+        grid-template-columns: minmax(0,1.2fr) minmax(0,0.9fr) minmax(0,0.72fr) minmax(0,0.82fr) auto;
+        grid-template-rows: auto 1fr;
+        align-items: start;
+        gap: 6px 5px;
+        padding: 10px 6px;
+      }
+      .entry-zone{
+        grid-column: 1; grid-row: 1;
+        justify-self: start; align-self: start;
+        margin-bottom: 2px;
+      }
+      .entry-main{ display: contents; }
+      .entry-main > .em-a{
+        grid-column: 1; grid-row: 2;
+        display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0;
+      }
+      .entry-main > .em-c,
+      .entry-main > .em-d{
+        grid-row: 1 / 3;
+        display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0;
+      }
+      .entry-main > .em-b{
+        grid-column: 2; grid-row: 1 / 3;
+        display: flex; flex-flow: row wrap; align-items: flex-start; gap: 2px 4px; min-width: 0;
+      }
+      .entry-main > .em-c{ grid-column: 3; }
+      .entry-main > .em-d{ grid-column: 4; }
+      .em-a .name{ font-size: 13.5px; }
+      .em-a .meet-inline{ white-space: normal; overflow-wrap: anywhere; }
+      /* 인원 열: 인·섬 한 줄, 교(3번째)는 다음 줄 */
+      .em-b .person-tag{ font-size: 11px; }
+      .em-b .person-tag:nth-child(3){ flex-basis: 100%; }
+      .em-b .tm-badges{ display: flex; flex-flow: row wrap; align-items: stretch; gap: 3px; width: 100%; }
+      .em-b .tm-btn{ flex: 1 1 40%; }
+      .em-b .tm-btn:nth-child(3){ flex-basis: 100%; }
+      .em-c > *{ width: 100%; max-width: 100%; }
+      /* 센터 열: 입력 위, 확인 버튼 아래 */
+      .em-d .ct-inline{ flex-direction: column; align-items: stretch; gap: 3px; width: 100%; }
+      .em-d .ct-label{ font-size: 10px; }
+      .em-d .ct-input{ width: 100%; }
+      .entry-card > .add-meet-wrap{
+        grid-column: 5; grid-row: 1 / 3; padding-top: 0;
+        display: flex; flex-direction: column; gap: 5px;
+      }
+      .entry-card > .add-meet-wrap .btn-sm{ width: 100%; justify-content: center; white-space: nowrap; padding: 5px 5px; }
+      .entry-card > .person-form{ grid-column: 1 / -1; margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="brand">
+    <h1>최강3부 관리시스템</h1>
+  </div>
+</div>
+
+<div class="tabbar" style="margin-top: 20px !important;">
+  <button class="tab active" data-tab="zonestat">섭외자 리스트 <span class="count" id="count-zonestat">0</span></button>
+  <button class="tab" data-tab="meetsched">만남 일정 <span class="count" id="count-meetsched">0</span></button>
+  <button class="tab" data-tab="check">TM 현황 <span class="count" id="count-check">0</span></button>
+  <button class="tab" data-tab="schedule">일정 목록 <span class="count" id="count-schedule">0</span></button>
+  <button class="tab" data-tab="outreach">창출 목록 <span class="count" id="count-outreach">0</span></button>
+  <button class="tab" data-tab="member">구역 관리 <span class="count" id="count-member">0</span></button>
+</div>
+
+<div class="stage">
+
+  <!-- =========== TAB 1: 섭외 리스트 =========== -->
+  <section class="panel" id="panel-outreach" style="display:none;">
+    <div class="panel-head">
+      <div>
+        <h2>창출 목록</h2>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="seg-group" id="outreach-prg-filter">
+          <button type="button" class="seg-btn on" data-prg-filter="all">전체</button>
+          <button type="button" class="seg-btn" data-prg-filter="none">미정</button>
+          <button type="button" class="seg-btn" data-prg-filter="going">진행</button>
+          <button type="button" class="seg-btn" data-prg-filter="cancel">중단</button>
+        </div>
+        <button class="btn btn-primary" id="toggle-outreach-form"><span class="btn-plus">+</span> 섭외자 추가</button>
+      </div>
+    </div>
+
+    <div class="add-form" id="outreach-form">
+      <div class="form-grid cols-2">
+        <div>
+          <label class="req">이름</label>
+          <input type="text" id="of-name" placeholder="예: 최미슬">
+        </div>
+        <div>
+          <label>티엠자</label>
+          <input type="text" id="of-tm-name" placeholder="예: 김상담">
+        </div>
+        <div>
+          <label class="req">구역1 · 인도</label>
+          <div class="seg-group" id="of-in-gu-seg"></div>
+        </div>
+        <div>
+          <label>구역2 · 교사</label>
+          <div class="seg-group" id="of-gyo-gu-seg"></div>
+        </div>
+        <div>
+          <label class="req">날짜</label>
+          <input type="date" id="of-meet-date">
+        </div>
+        <div>
+          <label>시간 · 장소</label>
+          <input type="text" id="of-meet" placeholder="예: 15:00 상무역 스타벅스">
+        </div>
+      </div>
+      <div class="form-error" id="outreach-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="cancel-outreach">취소</button>
+        <button class="btn btn-primary" id="save-outreach">저장</button>
+        <button class="btn btn-ghost" id="reset-outreach" title="인도 구역을 제외한 모든 입력값을 비웁니다">초기화</button>
+      </div>
+    </div>
+
+    <div id="outreach-groups" style="margin-top:18px;"></div>
+  </section>
+
+  <!-- =========== TAB 2: 일정 관리 =========== -->
+  <section class="panel" id="panel-schedule" style="display:none;">
+    <div class="panel-head">
+      <div>
+        <h2>일정 목록</h2>
+        <p>날짜별 만남 일정 — 첫만남 / 단계만남</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span class="date-range">
+          <input type="date" id="sch-from"> ~ <input type="date" id="sch-to">
+          <button type="button" class="btn btn-ghost btn-sm" id="sch-range-apply">조회</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="sch-range-reset">전체</button>
+        </span>
+        <button class="btn btn-primary" id="toggle-schedule-form"><span class="btn-plus">+</span> 만남 추가</button>
+      </div>
+    </div>
+
+    <div class="add-form" id="schedule-form">
+      <div class="form-grid">
+        <div class="span-2">
+          <label class="req">대상자</label>
+          <select id="sf-person"><option value="">불러오는 중…</option></select>
+        </div>
+        <div>
+          <label class="req">날짜</label>
+          <input type="date" id="sf-date">
+        </div>
+        <div>
+          <label>시간 · 장소</label>
+          <input type="text" id="sf-place" placeholder="예: 15:00 전대 인근 카페">
+        </div>
+        <div class="span-2">
+          <label>목표</label>
+          <input type="text" id="sf-goal" placeholder="예: 관계형성">
+        </div>
+      </div>
+      <div class="form-error" id="schedule-error">대상자와 날짜는 필수 입력입니다.</div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="cancel-schedule">취소</button>
+        <button class="btn btn-primary" id="save-schedule">저장</button>
+      </div>
+    </div>
+
+    <div id="schedule-list" style="margin-top:18px;"></div>
+  </section>
+
+  <!-- =========== TAB 3: 점검 현황 =========== -->
+  <section class="panel" id="panel-check" style="display:none;">
+    <div class="panel-head">
+      <div>
+        <h2>TM 현황</h2>
+        <p>섭외자별 TM 및 1·2·3차 점검 진행 상태입니다.</p>
+      </div>
+    </div>
+
+    <div class="stat-row" id="check-stats"></div>
+
+    <table>
+      <thead>
+      <tr>
+        <th>섭외일자</th><th>구역</th><th>이름</th><th>TM</th>
+        <th>1차 점검</th><th>2차 점검</th><th>3차 점검</th><th>상태</th><th>비고</th>
+      </tr>
+      </thead>
+      <tbody id="check-body"></tbody>
+    </table>
+  </section>
+
+
+  <!-- =========== TAB 4: 멤버 관리 =========== -->
+  <section class="panel" id="panel-member" style="display:none;">
+    <div class="panel-head">
+      <div>
+        <h2>구역 관리</h2>
+        <p>구역원 정보(CHOIMEMBER)를 조회·추가·수정·삭제합니다.</p>
+      </div>
+      <button class="btn btn-primary" id="toggle-member-form"><span class="btn-plus">+</span> 멤버 추가</button>
+    </div>
+
+    <div class="add-form" id="member-form">
+      <div class="form-grid">
+        <div>
+          <label class="req">고유 ID</label>
+          <input type="number" id="mf-id" placeholder="숫자 입력" min="1">
+        </div>
+        <div>
+          <label class="req">구역</label>
+          <input type="number" id="mf-gu" placeholder="예: 4" min="1">
+        </div>
+        <div class="span-2">
+          <label class="req">이름</label>
+          <input type="text" id="mf-name" placeholder="이름 입력" maxlength="20">
+        </div>
+        <div>
+          <label>교사</label>
+          <select id="mf-ta">
+            <option value="N">일반</option>
+            <option value="Y">교사</option>
+          </select>
+        </div>
+        <div>
+          <label>사명 여부</label>
+          <select id="mf-mission">
+            <option value="">없음</option>
+            <option value="사명">사명</option>
+            <option value="전도">전도</option>
+            <option value="구역장">구역장</option>
+            <option value="교관">교관</option>
+            <option value="부장">부장</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-error" id="member-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="cancel-member">취소</button>
+        <button class="btn btn-primary" id="save-member">저장</button>
+      </div>
+    </div>
+
+    <div class="filter-bar" id="member-filter-bar">
+      <div class="seg-group" id="member-seg-gu"></div>
+      <span class="filter-count" id="member-filtered-count"></span>
+    </div>
+
+    <table id="member-table">
+      <thead>
+        <tr>
+          <th>구역</th><th>이름</th><th>교사</th><th>사명</th><th>수정</th><th>삭제</th>
+        </tr>
+      </thead>
+      <tbody id="member-body"></tbody>
+    </table>
+  </section>
+
+  <!-- =========== TAB 5: 만남 일정 =========== -->
+  <section class="panel" id="panel-meetsched" style="display:none;">
+    <div class="panel-head">
+      <div>
+        <h2>만남 일정</h2>
+        <p>기본: 어제 ~ 이후 2주. 기간을 바꿔 조회할 수 있습니다.</p>
+      </div>
+      <span class="date-range">
+        <input type="date" id="mv-from"> ~ <input type="date" id="mv-to">
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-range-apply">조회</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-range-reset">기본</button>
+      </span>
+    </div>
+    <div id="meetsched-list" class="ms-list"></div>
+  </section>
+
+  <!-- =========== TAB 6: 구역 현황 =========== -->
+  <section class="panel" id="panel-zonestat">
+    <div class="panel-head">
+      <div>
+        <h2>섭외자 리스트</h2>
+      </div>
+    </div>
+    <div id="zonestat-wrap" class="zv-wrap"></div>
+  </section>
+
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

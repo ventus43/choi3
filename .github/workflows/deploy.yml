@@ -1,0 +1,96 @@
+name: Deploy choi3 to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REMOTE_DIR: /home/ubuntu/choi3
+  API_PORT: "8001"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build frontend
+        run: |
+          npm ci
+          VITE_API_BASE_URL=/api npm run build   # dist/
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+
+      - name: Ensure remote dirs
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.EC2_HOST }} \
+            "mkdir -p ${{ env.REMOTE_DIR }}/dist ${{ env.REMOTE_DIR }}/api ${{ env.REMOTE_DIR }}/nginx"
+
+      - name: Deploy static build
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            ./dist/ ubuntu@${{ secrets.EC2_HOST }}:${{ env.REMOTE_DIR }}/dist/
+
+      - name: Deploy API server
+        run: |
+          rsync -avz --delete \
+            --exclude '__pycache__/' --exclude 'Dockerfile' \
+            -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            ./local-api/ ubuntu@${{ secrets.EC2_HOST }}:${{ env.REMOTE_DIR }}/api/
+
+      - name: Write runtime env file on server
+        run: |
+          # 서버 gunicorn 이 읽을 환경변수. 시크릿이 없으면 그 줄은 안 씀 → server.py 기본값 사용.
+          {
+            [ -n "${{ secrets.OFFICE_PASSWORD }}" ] && echo "OFFICE_PASSWORD=${{ secrets.OFFICE_PASSWORD }}"
+            [ -n "${{ secrets.DB_HOST }}" ] && echo "DB_HOST=${{ secrets.DB_HOST }}"
+            [ -n "${{ secrets.DB_PORT }}" ] && echo "DB_PORT=${{ secrets.DB_PORT }}"
+            [ -n "${{ secrets.DB_USER }}" ] && echo "DB_USER=${{ secrets.DB_USER }}"
+            [ -n "${{ secrets.DB_PASS }}" ] && echo "DB_PASS=${{ secrets.DB_PASS }}"
+            [ -n "${{ secrets.DB_NAME }}" ] && echo "DB_NAME=${{ secrets.DB_NAME }}"
+          } > choi3.env
+          scp -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            choi3.env ubuntu@${{ secrets.EC2_HOST }}:${{ env.REMOTE_DIR }}/api/choi3.env
+
+      - name: Install deps & (re)start API via PM2
+        run: |
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.EC2_HOST }} <<'ENDSSH'
+          set -e
+          DIR=/home/ubuntu/choi3
+          PORT=8001
+
+          [ -d "$DIR/venv" ] || python3 -m venv "$DIR/venv"
+          "$DIR/venv/bin/pip" install -r "$DIR/api/requirements.txt" --quiet --upgrade
+
+          pm2 delete choi3-api 2>/dev/null || true
+          pm2 start bash --name choi3-api -- -c \
+            "cd $DIR/api && set -a && [ -f choi3.env ] && . ./choi3.env; set +a; exec $DIR/venv/bin/gunicorn -w 2 -b 127.0.0.1:$PORT server:app"
+          pm2 save
+          ENDSSH
+
+      - name: Apply nginx config
+        run: |
+          rsync -avz \
+            -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            ./nginx/choi3.conf ubuntu@${{ secrets.EC2_HOST }}:${{ env.REMOTE_DIR }}/nginx/choi3.conf
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.EC2_HOST }} \
+            "sudo cp ${{ env.REMOTE_DIR }}/nginx/choi3.conf /etc/nginx/sites-available/choi3 \
+             && sudo ln -sf /etc/nginx/sites-available/choi3 /etc/nginx/sites-enabled/choi3 \
+             && sudo nginx -t && sudo systemctl reload nginx"
