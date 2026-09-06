@@ -1,6 +1,11 @@
 import { meetingApi } from '../api.js';
+import { renderZoneSeg, nameMatch } from '../utils.js';
 
 const els = {};
+
+let allRows   = [];   // 현재 기간으로 불러온 만남 전체 (필터 전)
+let guFilter  = '';    // '' = 전체 구역
+let nameQuery = '';
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -67,10 +72,10 @@ function section(title, personCol, list) {
 }
 
 function render(list) {
-  els.count.textContent = list.length;
-
   if (!list.length) {
-    els.list.innerHTML = '<div class="ms-empty">어제부터 2주간 등록된 만남이 없습니다.</div>';
+    els.list.innerHTML = allRows.length
+      ? '<div class="ms-empty">해당 조건의 만남이 없습니다.</div>'
+      : '<div class="ms-empty">선택한 기간에 등록된 만남이 없습니다.</div>';
     return;
   }
 
@@ -106,11 +111,30 @@ function isoOffset(days) {
 }
 const defaultRange = () => ({ from: isoOffset(-1), to: isoOffset(14) });   // 어제 ~ +2주
 
+/* 구역 · 이름 필터를 적용해 표를 다시 그린다 (API 재호출 없음) */
+function refresh() {
+  renderZoneSeg(els.seg, allRows.map((m) => m.zone), guFilter, (v) => { guFilter = v; refresh(); });
+
+  const rows = allRows.filter((m) =>
+    (!guFilter || String(m.zone) === guFilter) && nameMatch(m.hireName, nameQuery));
+
+  els.count.textContent = allRows.length;
+  els.fcount.textContent = rows.length !== allRows.length
+    ? `${rows.length} / ${allRows.length}건`
+    : `${rows.length}건`;
+
+  render(rows);
+}
+
 async function load() {
   els.list.innerHTML = '<div class="loading">불러오는 중…</div>';
   try {
-    render(await meetingApi.upcoming({ from: els.from.value, to: els.to.value }));
+    allRows = await meetingApi.upcoming({ from: els.from.value, to: els.to.value });
+    refresh();
   } catch (err) {
+    allRows = [];
+    els.seg.innerHTML = '';
+    els.fcount.textContent = '';
     els.list.innerHTML = `<div class="error-banner">만남 일정을 불러오지 못했습니다. (${err.message})</div>`;
   }
 }
@@ -120,10 +144,15 @@ export async function reloadMeetSched() {
 }
 
 export async function initMeetSchedTab() {
-  els.list  = document.getElementById('meetsched-list');
-  els.count = document.getElementById('count-meetsched');
-  els.from  = document.getElementById('mv-from');
-  els.to    = document.getElementById('mv-to');
+  els.list   = document.getElementById('meetsched-list');
+  els.count  = document.getElementById('count-meetsched');
+  els.from   = document.getElementById('mv-from');
+  els.to     = document.getElementById('mv-to');
+  els.seg    = document.getElementById('meetsched-seg-gu');
+  els.search = document.getElementById('meetsched-search');
+  els.fcount = document.getElementById('meetsched-filtered-count');
+
+  els.search.addEventListener('input', () => { nameQuery = els.search.value; refresh(); });
 
   const d = defaultRange();
   els.from.value = d.from;

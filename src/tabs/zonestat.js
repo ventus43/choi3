@@ -1,5 +1,6 @@
 import { outreachApi, meetingApi } from '../api.js';
 import { STATUS_OPTIONS } from './outreach.js';
+import { renderZoneSeg, nameMatch } from '../utils.js';
 
 const els = {};
 
@@ -7,13 +8,20 @@ const ZONES = ['1', '2', '3', '4', '5', '6', '7'];   // personZones()가 항상 
 const LONG_TERM = '장기';   // 이름만 기록, 수치(점수)·합계 계산에서 제외
 const CORE_STATUSES = ['S2', 'S3', 'S4'];   // 구역 오른쪽 끝 "종합" 컬럼 = 이 세 상태 수치의 합
 
+let raw       = null;   // { people, meetings } — 필터 시 재조회 없이 재계산용
+let guFilter  = '';     // '' = 전체 구역
+let nameQuery = '';
+
 function statusKeyOf(status) {
   return STATUS_OPTIONS.includes(status) ? status : 'S0';
 }
 
 function cacheEls() {
-  els.wrap  = document.getElementById('zonestat-wrap');
-  els.count = document.getElementById('count-zonestat');
+  els.wrap   = document.getElementById('zonestat-wrap');
+  els.count  = document.getElementById('count-zonestat');
+  els.seg    = document.getElementById('zonestat-seg-gu');
+  els.search = document.getElementById('zonestat-search');
+  els.fcount = document.getElementById('zonestat-filtered-count');
 }
 
 /* 해당 구역: 인도구역 + (섬김구역 있으면 섬김구역, 없으면 교사구역). 중복되면 하나로. */
@@ -41,8 +49,14 @@ function displayValue(statusKey, date, ct) {
   return date;
 }
 
-async function buildData() {
+async function fetchRaw() {
   const [people, meetings] = await Promise.all([outreachApi.list(), meetingApi.schedule()]);
+  raw = { people, meetings };
+}
+
+/* raw 를 구역·이름 필터에 맞춰 매트릭스로 집계 (동기, 재조회 없음) */
+function buildData() {
+  const { people, meetings } = raw;
   const active = people.filter((p) => p.prg !== '중단');   // 취소(PRG='중단') 인원은 제외
 
   // hireId -> 가장 최근 만남 날짜(YYYY-MM-DD)
@@ -53,15 +67,15 @@ async function buildData() {
     if (!cur || m.meetDt > cur) latestDate.set(m.hireId, m.meetDt);
   });
 
-  // 사람별 (상태, 해당구역들, 점수, 최근날짜) 먼저 계산 — 1~7 밖 구역이 있으면 컬럼에 추가
-  const entries = [];
-  const zones = [...ZONES];
+  // 사람별 (상태, 해당구역들, 점수, 최근날짜) — 1~7 밖 구역이 있으면 선택지에 추가
+  const allEntries = [];
+  const allZones = [...ZONES];
   active.forEach((p) => {
     const pZones = personZones(p);
     if (!pZones.length) return;   // 인도구역조차 없는 데이터는 표에서 제외
-    pZones.forEach((z) => { if (!zones.includes(z)) zones.push(z); });
+    pZones.forEach((z) => { if (!allZones.includes(z)) allZones.push(z); });
 
-    entries.push({
+    allEntries.push({
       statusKey: statusKeyOf(p.status),
       zones: pZones,
       score: pZones.length === 2 ? 0.5 : 1,
@@ -70,6 +84,13 @@ async function buildData() {
       ct: p.ct || '',
     });
   });
+
+  // 구역·이름 필터 적용
+  const entries = allEntries.filter((e) =>
+    (!guFilter || e.zones.includes(guFilter)) && nameMatch(e.name, nameQuery));
+
+  // 표에 그릴 구역(행): 구역 필터가 걸리면 그 구역만
+  const zones = guFilter ? [guFilter] : allZones;
 
   const grid = {};
   STATUS_OPTIONS.forEach((s) => { grid[s] = {}; zones.forEach((z) => { grid[s][z] = []; }); });
@@ -82,6 +103,7 @@ async function buildData() {
 
   entries.forEach(({ statusKey, zones: pZones, score, name, date, ct }) => {
     pZones.forEach((z) => {
+      if (!(z in grid[statusKey])) return;   // 표에 없는 구역(필터로 숨긴 구역)은 건너뜀
       grid[statusKey][z].push({ name, score, display: displayValue(statusKey, date, ct) });
       if (statusKey !== LONG_TERM) statusTotals[statusKey] += score;
       if (CORE_STATUSES.includes(statusKey)) {
@@ -91,7 +113,12 @@ async function buildData() {
     });
   });
 
-  return { zones, grid, zoneTotals, statusTotals, grandTotal, count: active.length };
+  return {
+    zones, grid, zoneTotals, statusTotals, grandTotal,
+    allZones,
+    count: entries.length,
+    totalCount: active.length,
+  };
 }
 
 /* 상태 칸을 명단(이름+날짜) / 수치(점수) 두 서브컬럼으로 나눠서, 같은 줄끼리 짝이 맞게 표시 */
@@ -106,11 +133,18 @@ function cellScores(list) {
 }
 
 function render(data) {
-  const { zones, grid, zoneTotals, statusTotals, grandTotal, count } = data;
-  els.count.textContent = count;
+  const { zones, grid, zoneTotals, statusTotals, grandTotal, allZones, count, totalCount } = data;
+  els.count.textContent = totalCount;
 
-  if (count === 0) {
+  renderZoneSeg(els.seg, allZones, guFilter, (v) => { guFilter = v; render(buildData()); });
+  els.fcount.textContent = count !== totalCount ? `${count} / ${totalCount}명` : `${count}명`;
+
+  if (totalCount === 0) {
     els.wrap.innerHTML = '<div class="empty">취소 아닌 섭외자가 없습니다.</div>';
+    return;
+  }
+  if (count === 0) {
+    els.wrap.innerHTML = '<div class="empty">해당 조건의 섭외자가 없습니다.</div>';
     return;
   }
 
@@ -149,14 +183,21 @@ function render(data) {
 
 export async function reloadZoneStat() {
   try {
-    render(await buildData());
+    await fetchRaw();
+    render(buildData());
   } catch (err) {
+    if (els.seg) els.seg.innerHTML = '';
+    if (els.fcount) els.fcount.textContent = '';
     els.wrap.innerHTML = `<div class="error-banner">구역 현황을 불러오지 못했습니다. (${err.message})</div>`;
   }
 }
 
 export async function initZoneStatTab() {
   cacheEls();
+  els.search.addEventListener('input', () => {
+    nameQuery = els.search.value;
+    if (raw) render(buildData());
+  });
   els.wrap.innerHTML = '<div class="loading">불러오는 중…</div>';
   await reloadZoneStat();
 }
