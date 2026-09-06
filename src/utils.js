@@ -58,7 +58,7 @@ function zoneTokens(zones) {
 /* 구역 필터를 <select> 로 렌더. current='' 는 전체. 재호출해도 리스너가 쌓이지 않도록 onchange 로 바인딩. */
 export function renderZoneSelect(selectEl, zones, current, onChange) {
   const opts = zoneTokens(zones);
-  selectEl.innerHTML = `<option value="">전체 구역</option>`
+  selectEl.innerHTML = `<option value="">전체</option>`
     + opts.map((z) => `<option value="${z}">${z}구역</option>`).join('');
   selectEl.value = current;
   selectEl.onchange = () => onChange(selectEl.value);

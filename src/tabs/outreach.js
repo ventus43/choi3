@@ -164,7 +164,7 @@ function render() {
     return;
   }
   if (entries.length === 0) {
-    els.guFilter.innerHTML = '<option value="">전체 구역</option>';
+    els.guFilter.innerHTML = '<option value="">전체</option>';
     els.groups.innerHTML = '<div class="empty">등록된 섭외 기록이 없습니다. 위 + 버튼으로 추가해 보세요.</div>';
     return;
   }

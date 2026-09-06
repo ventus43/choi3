@@ -142,7 +142,7 @@ function render() {
     return;
   }
   if (rows.length === 0) {
-    els.guFilter.innerHTML = '<option value="">전체 구역</option>';
+    els.guFilter.innerHTML = '<option value="">전체</option>';
     els.list.innerHTML = '<div class="empty">등록된 만남 일정이 없습니다. 위 + 버튼으로 추가해 보세요.</div>';
     return;
   }
