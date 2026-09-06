@@ -1,10 +1,9 @@
 import { meetingApi } from '../api.js';
-import { renderZoneSeg, nameMatch } from '../utils.js';
+import { nameMatch } from '../utils.js';
 
 const els = {};
 
-let allRows   = [];   // 현재 기간으로 불러온 만남 전체 (필터 전)
-let guFilter  = '';    // '' = 전체 구역
+let allRows   = [];   // 현재 기간으로 불러온 만남 전체 (이름 필터 전)
 let nameQuery = '';
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
@@ -111,19 +110,10 @@ function isoOffset(days) {
 }
 const defaultRange = () => ({ from: isoOffset(-1), to: isoOffset(14) });   // 어제 ~ +2주
 
-/* 구역 · 이름 필터를 적용해 표를 다시 그린다 (API 재호출 없음) */
+/* 불러온 목록에 이름 필터만 적용해 다시 그린다 (API 재호출 없음) */
 function refresh() {
-  renderZoneSeg(els.seg, allRows.map((m) => m.zone), guFilter, (v) => { guFilter = v; refresh(); });
-
-  const rows = allRows.filter((m) =>
-    (!guFilter || String(m.zone) === guFilter) && nameMatch(m.hireName, nameQuery));
-
   els.count.textContent = allRows.length;
-  els.fcount.textContent = rows.length !== allRows.length
-    ? `${rows.length} / ${allRows.length}건`
-    : `${rows.length}건`;
-
-  render(rows);
+  render(allRows.filter((m) => nameMatch(m.hireName, nameQuery)));
 }
 
 async function load() {
@@ -133,8 +123,6 @@ async function load() {
     refresh();
   } catch (err) {
     allRows = [];
-    els.seg.innerHTML = '';
-    els.fcount.textContent = '';
     els.list.innerHTML = `<div class="error-banner">만남 일정을 불러오지 못했습니다. (${err.message})</div>`;
   }
 }
@@ -144,28 +132,30 @@ export async function reloadMeetSched() {
 }
 
 export async function initMeetSchedTab() {
-  els.list   = document.getElementById('meetsched-list');
-  els.count  = document.getElementById('count-meetsched');
-  els.from   = document.getElementById('mv-from');
-  els.to     = document.getElementById('mv-to');
-  els.seg      = document.getElementById('meetsched-seg-gu');
-  els.search   = document.getElementById('meetsched-search');
-  els.searchBtn = document.getElementById('meetsched-search-btn');
-  els.fcount   = document.getElementById('meetsched-filtered-count');
-
-  const applySearch = () => { nameQuery = els.search.value; refresh(); };
-  els.searchBtn.addEventListener('click', applySearch);
-  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
+  els.list  = document.getElementById('meetsched-list');
+  els.count = document.getElementById('count-meetsched');
+  els.from  = document.getElementById('mv-from');
+  els.to    = document.getElementById('mv-to');
+  els.name  = document.getElementById('mv-name');
 
   const d = defaultRange();
   els.from.value = d.from;
   els.to.value = d.to;
 
-  document.getElementById('mv-range-apply').addEventListener('click', load);
-  document.getElementById('mv-range-reset').addEventListener('click', () => {
+  // 검색: 현재 날짜 범위로 재조회 + 이름 필터 적용 (버튼 하나로 통일)
+  const search = () => { nameQuery = els.name.value; load(); };
+  document.getElementById('mv-search').addEventListener('click', search);
+  [els.name, els.from, els.to].forEach((inp) => {
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
+  });
+
+  // 초기화: 날짜 기본값 · 이름 비우고 재조회
+  document.getElementById('mv-reset').addEventListener('click', () => {
     const dd = defaultRange();
     els.from.value = dd.from;
     els.to.value = dd.to;
+    els.name.value = '';
+    nameQuery = '';
     load();
   });
 

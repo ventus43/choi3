@@ -32,7 +32,6 @@ function cacheEls() {
   els.guFilter   = document.getElementById('outreach-gu-filter');
   els.search     = document.getElementById('outreach-search');
   els.searchBtn  = document.getElementById('outreach-search-btn');
-  els.fcount     = document.getElementById('outreach-filtered-count');
 }
 
 /* 표시구역: 섬김구역 있으면 인도구역+섬김구역, 없으면 인도구역+교사구역 */
@@ -166,7 +165,6 @@ function render() {
   }
   if (entries.length === 0) {
     els.guFilter.innerHTML = '<option value="">전체 구역</option>';
-    els.fcount.textContent = '';
     els.groups.innerHTML = '<div class="empty">등록된 섭외 기록이 없습니다. 위 + 버튼으로 추가해 보세요.</div>';
     return;
   }
@@ -179,8 +177,6 @@ function render() {
     : entries.filter((e) => (e.prg || '') === PRG_FILTER_VALUE[prgFilter]);
   const list = prgList.filter((e) =>
     zoneMatch(e.zone || computeZone(e), guFilter) && nameMatch(e.name, nameQuery));
-
-  els.fcount.textContent = list.length !== entries.length ? `${list.length} / ${entries.length}명` : `${list.length}명`;
 
   if (list.length === 0) {
     const msg = (guFilter || nameQuery.trim())

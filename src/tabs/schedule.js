@@ -30,8 +30,6 @@ function cacheEls() {
   els.rangeTo   = document.getElementById('sch-to');
   els.guFilter  = document.getElementById('schedule-gu-filter');
   els.search    = document.getElementById('schedule-search');
-  els.searchBtn = document.getElementById('schedule-search-btn');
-  els.fcount    = document.getElementById('schedule-filtered-count');
 }
 
 function visibleRows() {
@@ -145,7 +143,6 @@ function render() {
   }
   if (rows.length === 0) {
     els.guFilter.innerHTML = '<option value="">전체 구역</option>';
-    els.fcount.textContent = '';
     els.list.innerHTML = '<div class="empty">등록된 만남 일정이 없습니다. 위 + 버튼으로 추가해 보세요.</div>';
     return;
   }
@@ -153,7 +150,6 @@ function render() {
   renderZoneSelect(els.guFilter, rows.map((m) => m.zone), guFilter, (v) => { guFilter = v; render(); });
 
   const list = visibleRows();
-  els.fcount.textContent = list.length !== rows.length ? `${list.length} / ${rows.length}건` : `${list.length}건`;
 
   if (list.length === 0) {
     els.list.innerHTML = '<div class="empty">해당 조건의 만남 일정이 없습니다.</div>';
@@ -396,16 +392,22 @@ export async function initScheduleTab() {
   els.cancelBtn.addEventListener('click', () => { els.form.classList.remove('open'); resetForm(); });
   els.saveBtn.addEventListener('click', handleSave);
 
-  document.getElementById('sch-range-apply').addEventListener('click', () => { reloadSchedule(); });
-  document.getElementById('sch-range-reset').addEventListener('click', () => {
-    els.rangeFrom.value = '';
-    els.rangeTo.value = '';
-    reloadSchedule();
+  // 검색: 날짜 범위 재조회 + 이름 필터 (버튼 하나로 통일)
+  const search = () => { nameQuery = els.search.value; reloadSchedule(); };
+  document.getElementById('schedule-search-btn').addEventListener('click', search);
+  [els.search, els.rangeFrom, els.rangeTo].forEach((inp) => {
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   });
 
-  const applySearch = () => { nameQuery = els.search.value; render(); };
-  els.searchBtn.addEventListener('click', applySearch);
-  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
+  // 초기화: 날짜 · 이름 · 구역 필터 전부 비우고 재조회
+  document.getElementById('schedule-reset-btn').addEventListener('click', () => {
+    els.rangeFrom.value = '';
+    els.rangeTo.value = '';
+    els.search.value = '';
+    nameQuery = '';
+    guFilter = '';
+    reloadSchedule();
+  });
 
   els.list.innerHTML = '<div class="loading">불러오는 중…</div>';
   await reloadSchedule();

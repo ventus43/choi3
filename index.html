@@ -622,9 +622,12 @@
     }
     .filter-search:focus { border-color: var(--primary); }
     .filter-search-group + .filter-count { margin-left: 10px; }
-    /* 등록·수정 탭(일정/창출): 필터를 좌측에 두고 select 형식 */
-    .filter-bar-left .filter-select { padding: 5px 9px; font-size: 12px; }
-    .filter-bar-left .filter-count { margin-left: auto; }
+    /* 일정/창출: 구역 select 는 타이틀 바로 옆, 나머지 도구는 우측 끝 */
+    .panel-head-zone { align-self: center; padding: 5px 9px; font-size: 12px; }
+    .panel-head-tools {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      margin-left: auto;
+    }
     .filter-count {
       margin-left: auto;
       font-size: 12px;
@@ -1001,13 +1004,16 @@
       <div>
         <h2>창출 목록</h2>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select class="filter-select panel-head-zone" id="outreach-gu-filter"></select>
+      <div class="panel-head-tools">
         <div class="seg-group" id="outreach-prg-filter">
           <button type="button" class="seg-btn on" data-prg-filter="all">전체</button>
           <button type="button" class="seg-btn" data-prg-filter="none">미정</button>
           <button type="button" class="seg-btn" data-prg-filter="going">진행</button>
           <button type="button" class="seg-btn" data-prg-filter="cancel">중단</button>
         </div>
+        <input type="text" class="filter-search" id="outreach-search" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="outreach-search-btn">검색</button>
         <button class="btn btn-primary" id="toggle-outreach-form"><span class="btn-plus">+</span> 섭외자 추가</button>
       </div>
     </div>
@@ -1047,13 +1053,6 @@
       </div>
     </div>
 
-    <div class="filter-bar filter-bar-left" id="outreach-filter-bar">
-      <select class="filter-select" id="outreach-gu-filter"></select>
-      <input type="text" class="filter-search" id="outreach-search" placeholder="이름" autocomplete="off">
-      <button type="button" class="btn btn-ghost btn-sm" id="outreach-search-btn">검색</button>
-      <span class="filter-count" id="outreach-filtered-count"></span>
-    </div>
-
     <div id="outreach-groups" style="margin-top:18px;"></div>
   </section>
 
@@ -1064,11 +1063,13 @@
         <h2>일정 목록</h2>
         <p>날짜별 만남 일정 — 첫만남 / 단계만남</p>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select class="filter-select panel-head-zone" id="schedule-gu-filter"></select>
+      <div class="panel-head-tools">
         <span class="date-range">
           <input type="date" id="sch-from"> ~ <input type="date" id="sch-to">
-          <button type="button" class="btn btn-ghost btn-sm" id="sch-range-apply">조회</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="sch-range-reset">전체</button>
+          <input type="text" class="filter-search" id="schedule-search" placeholder="이름" autocomplete="off">
+          <button type="button" class="btn btn-ghost btn-sm" id="schedule-search-btn">검색</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="schedule-reset-btn">초기화</button>
         </span>
         <button class="btn btn-primary" id="toggle-schedule-form"><span class="btn-plus">+</span> 만남 추가</button>
       </div>
@@ -1098,13 +1099,6 @@
         <button class="btn btn-ghost" id="cancel-schedule">취소</button>
         <button class="btn btn-primary" id="save-schedule">저장</button>
       </div>
-    </div>
-
-    <div class="filter-bar filter-bar-left" id="schedule-filter-bar">
-      <select class="filter-select" id="schedule-gu-filter"></select>
-      <input type="text" class="filter-search" id="schedule-search" placeholder="이름" autocomplete="off">
-      <button type="button" class="btn btn-ghost btn-sm" id="schedule-search-btn">검색</button>
-      <span class="filter-count" id="schedule-filtered-count"></span>
     </div>
 
     <div id="schedule-list" style="margin-top:18px;"></div>
@@ -1212,21 +1206,14 @@
     <div class="panel-head">
       <div>
         <h2>만남 일정</h2>
-        <p>기본: 어제 ~ 이후 2주. 기간을 바꿔 조회할 수 있습니다.</p>
+        <p>기본: 어제 ~ 이후 2주. 기간·이름으로 조회할 수 있습니다.</p>
       </div>
       <span class="date-range">
         <input type="date" id="mv-from"> ~ <input type="date" id="mv-to">
-        <button type="button" class="btn btn-ghost btn-sm" id="mv-range-apply">조회</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="mv-range-reset">기본</button>
+        <input type="text" class="filter-search" id="mv-name" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-search">검색</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-reset">초기화</button>
       </span>
-    </div>
-    <div class="filter-bar" id="meetsched-filter-bar">
-      <div class="seg-group" id="meetsched-seg-gu"></div>
-      <span class="filter-search-group">
-        <input type="text" class="filter-search" id="meetsched-search" placeholder="이름" autocomplete="off">
-        <button type="button" class="btn btn-ghost btn-sm" id="meetsched-search-btn">검색</button>
-      </span>
-      <span class="filter-count" id="meetsched-filtered-count"></span>
     </div>
     <div id="meetsched-list" class="ms-list"></div>
   </section>
