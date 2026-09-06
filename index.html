@@ -622,8 +622,8 @@
     }
     .filter-search:focus { border-color: var(--primary); }
     .filter-search-group + .filter-count { margin-left: 10px; }
-    /* 일정/창출: 구역 select 는 타이틀 바로 옆, 나머지 도구는 우측 끝 */
-    .panel-head-zone { align-self: center; padding: 5px 9px; font-size: 12px; }
+    /* 일정/창출: 구역 select 등 도구를 검색창 라인에 함께 둠(별도 줄 차지 안 함) */
+    .panel-head-zone { align-self: center; padding: 5px 9px; font-size: 12px; flex: 0 0 auto; }
     .panel-head-tools {
       display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
       margin-left: auto;
@@ -1004,8 +1004,8 @@
       <div>
         <h2>창출 목록</h2>
       </div>
-      <select class="filter-select panel-head-zone" id="outreach-gu-filter"></select>
       <div class="panel-head-tools">
+        <select class="filter-select panel-head-zone" id="outreach-gu-filter"></select>
         <div class="seg-group" id="outreach-prg-filter">
           <button type="button" class="seg-btn on" data-prg-filter="all">전체</button>
           <button type="button" class="seg-btn" data-prg-filter="none">미정</button>
@@ -1063,8 +1063,8 @@
         <h2>일정 목록</h2>
         <p>날짜별 만남 일정 — 첫만남 / 단계만남</p>
       </div>
-      <select class="filter-select panel-head-zone" id="schedule-gu-filter"></select>
       <div class="panel-head-tools">
+        <select class="filter-select panel-head-zone" id="schedule-gu-filter"></select>
         <span class="date-range">
           <input type="date" id="sch-from"> ~ <input type="date" id="sch-to">
           <input type="text" class="filter-search" id="schedule-search" placeholder="이름" autocomplete="off">
