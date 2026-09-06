@@ -148,11 +148,14 @@ export async function initMeetSchedTab() {
   els.count  = document.getElementById('count-meetsched');
   els.from   = document.getElementById('mv-from');
   els.to     = document.getElementById('mv-to');
-  els.seg    = document.getElementById('meetsched-seg-gu');
-  els.search = document.getElementById('meetsched-search');
-  els.fcount = document.getElementById('meetsched-filtered-count');
+  els.seg      = document.getElementById('meetsched-seg-gu');
+  els.search   = document.getElementById('meetsched-search');
+  els.searchBtn = document.getElementById('meetsched-search-btn');
+  els.fcount   = document.getElementById('meetsched-filtered-count');
 
-  els.search.addEventListener('input', () => { nameQuery = els.search.value; refresh(); });
+  const applySearch = () => { nameQuery = els.search.value; refresh(); };
+  els.searchBtn.addEventListener('click', applySearch);
+  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
 
   const d = defaultRange();
   els.from.value = d.from;

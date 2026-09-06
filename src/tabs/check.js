@@ -11,9 +11,15 @@ function cacheEls() {
   els.stats  = document.getElementById('check-stats');
   els.body   = document.getElementById('check-body');
   els.count  = document.getElementById('count-check');
-  els.seg    = document.getElementById('check-seg-gu');
-  els.search = document.getElementById('check-search');
-  els.fcount = document.getElementById('check-filtered-count');
+  els.seg      = document.getElementById('check-seg-gu');
+  els.search   = document.getElementById('check-search');
+  els.searchBtn = document.getElementById('check-search-btn');
+  els.fcount   = document.getElementById('check-filtered-count');
+}
+
+function applySearch() {
+  nameQuery = els.search.value;
+  render(false);
 }
 
 function filtered() {
@@ -79,7 +85,8 @@ function render(loadFailed) {
 
 export async function initCheckTab() {
   cacheEls();
-  els.search.addEventListener('input', () => { nameQuery = els.search.value; render(false); });
+  els.searchBtn.addEventListener('click', applySearch);
+  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
   els.body.innerHTML = `<tr><td colspan="9"><div class="loading">불러오는 중…</div></td></tr>`;
   try {
     entries = await checkApi.list();

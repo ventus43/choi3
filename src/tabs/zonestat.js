@@ -19,9 +19,10 @@ function statusKeyOf(status) {
 function cacheEls() {
   els.wrap   = document.getElementById('zonestat-wrap');
   els.count  = document.getElementById('count-zonestat');
-  els.seg    = document.getElementById('zonestat-seg-gu');
-  els.search = document.getElementById('zonestat-search');
-  els.fcount = document.getElementById('zonestat-filtered-count');
+  els.seg      = document.getElementById('zonestat-seg-gu');
+  els.search   = document.getElementById('zonestat-search');
+  els.searchBtn = document.getElementById('zonestat-search-btn');
+  els.fcount   = document.getElementById('zonestat-filtered-count');
 }
 
 /* 해당 구역: 인도구역 + (섬김구역 있으면 섬김구역, 없으면 교사구역). 중복되면 하나로. */
@@ -194,10 +195,12 @@ export async function reloadZoneStat() {
 
 export async function initZoneStatTab() {
   cacheEls();
-  els.search.addEventListener('input', () => {
+  const applySearch = () => {
     nameQuery = els.search.value;
     if (raw) render(buildData());
-  });
+  };
+  els.searchBtn.addEventListener('click', applySearch);
+  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
   els.wrap.innerHTML = '<div class="loading">불러오는 중…</div>';
   await reloadZoneStat();
 }

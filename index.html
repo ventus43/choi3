@@ -603,18 +603,25 @@
       outline: none;
     }
     .filter-select:focus { border-color: var(--primary); }
+    .filter-search-group {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
     .filter-search {
       border: 1.5px solid var(--border);
       border-radius: var(--radius);
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 5px 9px;
+      font-size: 12px;
       font-family: inherit;
       color: var(--ink);
       background: var(--surface);
       outline: none;
-      min-width: 130px;
+      width: 110px;
     }
     .filter-search:focus { border-color: var(--primary); }
+    .filter-search-group + .filter-count { margin-left: 10px; }
     .filter-count {
       margin-left: auto;
       font-size: 12px;
@@ -1097,7 +1104,10 @@
 
     <div class="filter-bar" id="check-filter-bar">
       <div class="seg-group" id="check-seg-gu"></div>
-      <input type="text" class="filter-search" id="check-search" placeholder="이름 검색" autocomplete="off">
+      <span class="filter-search-group">
+        <input type="text" class="filter-search" id="check-search" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="check-search-btn">검색</button>
+      </span>
       <span class="filter-count" id="check-filtered-count"></span>
     </div>
 
@@ -1195,7 +1205,10 @@
     </div>
     <div class="filter-bar" id="meetsched-filter-bar">
       <div class="seg-group" id="meetsched-seg-gu"></div>
-      <input type="text" class="filter-search" id="meetsched-search" placeholder="이름 검색" autocomplete="off">
+      <span class="filter-search-group">
+        <input type="text" class="filter-search" id="meetsched-search" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="meetsched-search-btn">검색</button>
+      </span>
       <span class="filter-count" id="meetsched-filtered-count"></span>
     </div>
     <div id="meetsched-list" class="ms-list"></div>
@@ -1210,7 +1223,10 @@
     </div>
     <div class="filter-bar" id="zonestat-filter-bar">
       <div class="seg-group" id="zonestat-seg-gu"></div>
-      <input type="text" class="filter-search" id="zonestat-search" placeholder="이름 검색" autocomplete="off">
+      <span class="filter-search-group">
+        <input type="text" class="filter-search" id="zonestat-search" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="zonestat-search-btn">검색</button>
+      </span>
       <span class="filter-count" id="zonestat-filtered-count"></span>
     </div>
     <div id="zonestat-wrap" class="zv-wrap"></div>
