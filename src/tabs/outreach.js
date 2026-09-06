@@ -1,8 +1,11 @@
 import { outreachApi } from '../api.js';
+import { renderZoneSelect, zoneMatch, nameMatch } from '../utils.js';
 
 let entries = [];
 let loadFailed = false;
 let prgFilter = 'all';   // all | none(미정) | going(진행) | cancel(취소)
+let guFilter  = '';       // '' = 전체 구역
+let nameQuery = '';
 
 // 필터 키 -> CHOIHIRE.PRG 값
 const PRG_FILTER_VALUE = { none: '', going: '진행', cancel: '중단' };
@@ -26,6 +29,10 @@ function cacheEls() {
   els.meet       = document.getElementById('of-meet');
   els.meetDateInput  = document.getElementById('of-meet-date');
   els.prgFilter  = document.getElementById('outreach-prg-filter');
+  els.guFilter   = document.getElementById('outreach-gu-filter');
+  els.search     = document.getElementById('outreach-search');
+  els.searchBtn  = document.getElementById('outreach-search-btn');
+  els.fcount     = document.getElementById('outreach-filtered-count');
 }
 
 /* 표시구역: 섬김구역 있으면 인도구역+섬김구역, 없으면 인도구역+교사구역 */
@@ -158,15 +165,28 @@ function render() {
     return;
   }
   if (entries.length === 0) {
+    els.guFilter.innerHTML = '<option value="">전체 구역</option>';
+    els.fcount.textContent = '';
     els.groups.innerHTML = '<div class="empty">등록된 섭외 기록이 없습니다. 위 + 버튼으로 추가해 보세요.</div>';
     return;
   }
 
-  const list = prgFilter === 'all'
+  renderZoneSelect(els.guFilter, entries.map((e) => e.zone || computeZone(e)), guFilter,
+    (v) => { guFilter = v; render(); });
+
+  const prgList = prgFilter === 'all'
     ? entries
     : entries.filter((e) => (e.prg || '') === PRG_FILTER_VALUE[prgFilter]);
+  const list = prgList.filter((e) =>
+    zoneMatch(e.zone || computeZone(e), guFilter) && nameMatch(e.name, nameQuery));
+
+  els.fcount.textContent = list.length !== entries.length ? `${list.length} / ${entries.length}명` : `${list.length}명`;
+
   if (list.length === 0) {
-    els.groups.innerHTML = `<div class="empty">${PRG_FILTER_LABEL[prgFilter]} 상태 섭외자가 없습니다.</div>`;
+    const msg = (guFilter || nameQuery.trim())
+      ? '해당 조건의 섭외자가 없습니다.'
+      : `${PRG_FILTER_LABEL[prgFilter]} 상태 섭외자가 없습니다.`;
+    els.groups.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
 
@@ -454,6 +474,10 @@ export async function initOutreachTab() {
   els.cancelBtn.addEventListener('click', () => { els.form.classList.remove('open'); resetForm(); });
   els.saveBtn.addEventListener('click', handleSave);
   els.resetBtn.addEventListener('click', clearFormExceptInGu);
+
+  const applySearch = () => { nameQuery = els.search.value; render(); };
+  els.searchBtn.addEventListener('click', applySearch);
+  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
 
   els.groups.innerHTML = '<div class="loading">불러오는 중…</div>';
   try {

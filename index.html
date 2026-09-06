@@ -622,6 +622,9 @@
     }
     .filter-search:focus { border-color: var(--primary); }
     .filter-search-group + .filter-count { margin-left: 10px; }
+    /* 등록·수정 탭(일정/창출): 필터를 좌측에 두고 select 형식 */
+    .filter-bar-left .filter-select { padding: 5px 9px; font-size: 12px; }
+    .filter-bar-left .filter-count { margin-left: auto; }
     .filter-count {
       margin-left: auto;
       font-size: 12px;
@@ -1044,6 +1047,13 @@
       </div>
     </div>
 
+    <div class="filter-bar filter-bar-left" id="outreach-filter-bar">
+      <select class="filter-select" id="outreach-gu-filter"></select>
+      <input type="text" class="filter-search" id="outreach-search" placeholder="이름" autocomplete="off">
+      <button type="button" class="btn btn-ghost btn-sm" id="outreach-search-btn">검색</button>
+      <span class="filter-count" id="outreach-filtered-count"></span>
+    </div>
+
     <div id="outreach-groups" style="margin-top:18px;"></div>
   </section>
 
@@ -1088,6 +1098,13 @@
         <button class="btn btn-ghost" id="cancel-schedule">취소</button>
         <button class="btn btn-primary" id="save-schedule">저장</button>
       </div>
+    </div>
+
+    <div class="filter-bar filter-bar-left" id="schedule-filter-bar">
+      <select class="filter-select" id="schedule-gu-filter"></select>
+      <input type="text" class="filter-search" id="schedule-search" placeholder="이름" autocomplete="off">
+      <button type="button" class="btn btn-ghost btn-sm" id="schedule-search-btn">검색</button>
+      <span class="filter-count" id="schedule-filtered-count"></span>
     </div>
 
     <div id="schedule-list" style="margin-top:18px;"></div>

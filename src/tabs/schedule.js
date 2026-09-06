@@ -1,8 +1,11 @@
 import { meetingApi, outreachApi } from '../api.js';
+import { renderZoneSelect, zoneMatch, nameMatch } from '../utils.js';
 
 let rows = [];
 let people = [];        // PRG='중단' 아닌 섭외자 (대상자 선택용)
 let loadFailed = false;
+let guFilter  = '';      // '' = 전체 구역
+let nameQuery = '';
 let pendingCancelId = null;   // 진행여부=취소 선택 후 비고에 사유 입력 중인 meeting id (동시에 하나만)
 let editingDateId = null;     // 날짜 수정 중인 meeting id
 let expandedCellKey = null;   // 펼쳐진 시간장소/목표 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
@@ -25,6 +28,14 @@ function cacheEls() {
   els.goal      = document.getElementById('sf-goal');
   els.rangeFrom = document.getElementById('sch-from');
   els.rangeTo   = document.getElementById('sch-to');
+  els.guFilter  = document.getElementById('schedule-gu-filter');
+  els.search    = document.getElementById('schedule-search');
+  els.searchBtn = document.getElementById('schedule-search-btn');
+  els.fcount    = document.getElementById('schedule-filtered-count');
+}
+
+function visibleRows() {
+  return rows.filter((m) => zoneMatch(m.zone, guFilter) && nameMatch(m.hireName, nameQuery));
 }
 
 function dayLabel(iso) {
@@ -133,13 +144,25 @@ function render() {
     return;
   }
   if (rows.length === 0) {
+    els.guFilter.innerHTML = '<option value="">전체 구역</option>';
+    els.fcount.textContent = '';
     els.list.innerHTML = '<div class="empty">등록된 만남 일정이 없습니다. 위 + 버튼으로 추가해 보세요.</div>';
+    return;
+  }
+
+  renderZoneSelect(els.guFilter, rows.map((m) => m.zone), guFilter, (v) => { guFilter = v; render(); });
+
+  const list = visibleRows();
+  els.fcount.textContent = list.length !== rows.length ? `${list.length} / ${rows.length}건` : `${list.length}건`;
+
+  if (list.length === 0) {
+    els.list.innerHTML = '<div class="empty">해당 조건의 만남 일정이 없습니다.</div>';
     return;
   }
 
   const tIso = todayIso();
   const groups = new Map();
-  rows.forEach((m) => {
+  list.forEach((m) => {
     if (!groups.has(m.meetDt)) groups.set(m.meetDt, []);
     groups.get(m.meetDt).push(m);
   });
@@ -379,6 +402,10 @@ export async function initScheduleTab() {
     els.rangeTo.value = '';
     reloadSchedule();
   });
+
+  const applySearch = () => { nameQuery = els.search.value; render(); };
+  els.searchBtn.addEventListener('click', applySearch);
+  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
 
   els.list.innerHTML = '<div class="loading">불러오는 중…</div>';
   await reloadSchedule();
