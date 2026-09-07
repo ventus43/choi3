@@ -1,7 +1,8 @@
-import { outreachApi } from '../api.js';
-import { renderZoneSelect, zoneMatch, nameMatch } from '../utils.js';
+import { outreachApi, memberApi } from '../api.js';
+import { renderZoneSelect, zoneMatch, nameMatch, taCode, TA_LABEL } from '../utils.js';
 
 let entries = [];
+let teachers = [];   // 구역관리(CHOIMEMBER) 중 상담사(TA=1)·교사(TA=2) — 교사 인원 선택 목록
 let loadFailed = false;
 let prgFilter = 'all';   // all | none(미정) | going(진행) | cancel(취소)
 let guFilter  = '';       // '' = 전체 구역
@@ -115,12 +116,32 @@ const ROLES = [
   ['gyoGu', 'gyosa',   '교사'],
 ];
 
+/* 교사 이름은 구역관리에 등록된 교사(TA='Y') 중에서 select. 그 외 역할은 자유 입력. */
+function pfNameField(nameKey, label, val) {
+  if (nameKey !== 'gyosa') {
+    return `<input type="text" class="pf-name" placeholder="${label}자 이름" data-pf="${nameKey}" value="${val ?? ''}">`;
+  }
+  const cur = val ?? '';
+  const seen = new Set();
+  const opts = [`<option value=""${cur === '' ? ' selected' : ''}>(교사 선택)</option>`];
+  teachers.forEach((t) => {
+    if (seen.has(t.NAME)) return;
+    seen.add(t.NAME);
+    opts.push(`<option value="${t.NAME}"${t.NAME === cur ? ' selected' : ''}>${t.NAME} (${TA_LABEL[taCode(t.TA)]})</option>`);
+  });
+  // 기존 값이 목록에 없으면(과거 자유 입력) 옵션으로 살려둠
+  if (cur && !seen.has(cur)) {
+    opts.push(`<option value="${cur}" selected>${cur} (미등록)</option>`);
+  }
+  return `<select class="pf-name" data-pf="gyosa">${opts.join('')}</select>`;
+}
+
 function personForm(e) {
   const rows = ROLES.map(([guKey, nameKey, label]) => `
     <div class="pf-row">
       <span class="pf-role">${label}</span>
       <input type="number" class="pf-gu" min="1" placeholder="구역" data-pf="${guKey}" value="${e[guKey] ?? ''}">
-      <input type="text" class="pf-name" placeholder="${label}자 이름" data-pf="${nameKey}" value="${e[nameKey] ?? ''}">
+      ${pfNameField(nameKey, label, e[nameKey])}
     </div>`).join('');
   const meetVal = String(e.meetCn ?? '').replace(/"/g, '&quot;');
   return `
@@ -242,6 +263,15 @@ function render() {
 
   els.groups.querySelectorAll('[data-person-reset]').forEach((btn) => {
     btn.addEventListener('click', () => handlePersonReset(Number(btn.dataset.personReset)));
+  });
+
+  // 교사 select 변경 시 같은 줄 "교사 구역" 칸을 그 교사의 등록 구역으로 채움
+  els.groups.querySelectorAll('select[data-pf="gyosa"]').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      const t = teachers.find((x) => x.NAME === sel.value);
+      const guInput = sel.closest('.pf-row')?.querySelector('.pf-gu[data-pf="gyoGu"]');
+      if (t && guInput && t.GU != null && t.GU !== '') guInput.value = t.GU;
+    });
   });
 
   els.groups.querySelectorAll('[data-tm]').forEach((btn) => {
@@ -482,6 +512,14 @@ export async function initOutreachTab() {
   } catch {
     loadFailed = true;
     entries    = [];
+  }
+  // 교사 선택 목록: 구역관리의 상담사(1)·교사(2). 실패해도 나머지는 정상 동작.
+  try {
+    teachers = (await memberApi.list())
+      .filter((m) => taCode(m.TA) >= 1)
+      .sort((a, b) => (taCode(b.TA) - taCode(a.TA)) || (Number(a.GU) - Number(b.GU)) || String(a.NAME).localeCompare(b.NAME));
+  } catch {
+    teachers = [];
   }
   render();
 }

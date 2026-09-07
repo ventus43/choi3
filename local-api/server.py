@@ -1,4 +1,9 @@
 import os
+import json
+import uuid
+import urllib.request
+import urllib.error
+from datetime import datetime
 import pymysql
 from flask import Flask, request, jsonify
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -77,7 +82,8 @@ def member_create():
         with conn.cursor() as cur:
             cur.execute(
                 'INSERT INTO CHOIMEMBER (NTT_ID, GU, NAME, TA, ISMISSION) VALUES (%s,%s,%s,%s,%s)',
-                (body.get('NTT_ID'), body.get('GU'), body.get('NAME'), body.get('TA','N'), body.get('ISMISSION','N'))
+                # TA: 0=일반 / 1=상담사 / 2=교사 (기본 0)
+                (body.get('NTT_ID'), body.get('GU'), body.get('NAME'), body.get('TA', 0), body.get('ISMISSION','N'))
             )
             conn.commit()
             cur.execute('SELECT NTT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER WHERE NTT_ID=%s', (body.get('NTT_ID'),))
@@ -526,6 +532,65 @@ def meeting_delete(mid):
             return ('', 204)
     finally:
         conn.close()
+
+
+# ── /screenshot  (탭 화면 캡처 → 텔레그램 전송) ──────────────────────────────
+# 프론트가 만든 PNG 를 받아 텔레그램 방으로 전송한다.
+# 운영에서는 아래 값을 환경변수로 덮어쓸 것 (choi3.env 등).
+TELEGRAM_BOT_TOKEN       = os.environ.get('TELEGRAM_BOT_TOKEN', '8231818005:AAHTZz07GMXJdxWmA2K21lyLfPhQsr2NsDQ')
+TELEGRAM_SCREENSHOT_CHAT = os.environ.get('TELEGRAM_SCREENSHOT_CHAT', '-5464033116')
+
+
+def _telegram_upload(method, field, caption, data, content_type='image/png'):
+    """stdlib 만으로 multipart/form-data 업로드. Telegram 응답(dict) 반환."""
+    boundary = 'choi3-' + uuid.uuid4().hex
+    text_parts = ''.join(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
+        for name, value in (('chat_id', str(TELEGRAM_SCREENSHOT_CHAT)), ('caption', caption))
+    ).encode('utf-8')
+    file_head = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; '
+        f'filename="screenshot.png"\r\nContent-Type: {content_type}\r\n\r\n'
+    ).encode('utf-8')
+    body = text_parts + file_head + data + f'\r\n--{boundary}--\r\n'.encode('utf-8')
+
+    req = urllib.request.Request(
+        f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}',
+        data=body,
+        headers={'Content-Type': f'multipart/form-data; boundary={boundary}'},
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read().decode('utf-8'))
+        except Exception:
+            return {'ok': False, 'description': f'HTTP {e.code}'}
+    except Exception as e:
+        return {'ok': False, 'description': str(e)}
+
+
+@app.route('/screenshot', methods=['POST'])
+def screenshot_send():
+    f = request.files.get('image')
+    if f is None:
+        return jsonify({'message': '이미지가 없습니다.'}), 400
+    data = f.read()
+    if not data:
+        return jsonify({'message': '빈 이미지입니다.'}), 400
+
+    label   = (request.form.get('label') or '화면').strip()
+    caption = f'📷 {label}\n{datetime.now().strftime("%Y-%m-%d %H:%M")}'
+
+    # 사진(sendPhoto)으로 먼저 시도 → 치수·용량 초과 등 실패 시 문서로 재시도
+    res = _telegram_upload('sendPhoto', 'photo', caption, data)
+    if not res.get('ok'):
+        res = _telegram_upload('sendDocument', 'document', caption, data)
+    if not res.get('ok'):
+        return jsonify({'message': res.get('description', '텔레그램 전송 실패')}), 502
+    return jsonify({'ok': True})
 
 
 if __name__ == '__main__':

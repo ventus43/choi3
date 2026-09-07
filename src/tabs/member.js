@@ -1,4 +1,5 @@
 import { memberApi } from '../api.js';
+import { taCode } from '../utils.js';
 
 let entries   = [];
 let editingId = null;   // 현재 인라인 수정 중인 NTT_ID
@@ -50,6 +51,14 @@ function badge(val, type) {
   return `<span class="badge badge-none">-</span>`;
 }
 
+/* TA: 0=일반 / 1=상담사 / 2=교사 */
+function taBadge(val) {
+  const c = taCode(val);
+  if (c === 2) return `<span class="badge badge-ta">교사</span>`;
+  if (c === 1) return `<span class="badge badge-counsel">상담사</span>`;
+  return `<span class="badge badge-none">일반</span>`;
+}
+
 function render() {
   els.count.textContent = entries.length;
 
@@ -73,7 +82,7 @@ function render() {
       <tr data-id="${m.NTT_ID}">
         <td>${m.GU ?? '-'}</td>
         <td><strong>${m.NAME ?? ''}</strong></td>
-        <td>${badge(m.TA, 'ta')}</td>
+        <td>${taBadge(m.TA)}</td>
         <td>${badge(m.ISMISSION, 'mission')}</td>
         <td><button class="btn-icon confirm" data-edit="${m.NTT_ID}" title="수정">✏️</button></td>
         <td><button class="btn-icon danger"  data-del="${m.NTT_ID}"  title="삭제">✕</button></td>
@@ -90,8 +99,9 @@ function editRow(m) {
       <td class="edit-cell"><input type="text"   data-field="NAME" value="${m.NAME ?? ''}" maxlength="20"></td>
       <td class="edit-cell">
         <select data-field="TA">
-          <option value="N" ${(m.TA || 'N') === 'N' ? 'selected' : ''}>일반</option>
-          <option value="Y" ${m.TA === 'Y' ? 'selected' : ''}>교사</option>
+          <option value="0" ${taCode(m.TA) === 0 ? 'selected' : ''}>일반</option>
+          <option value="1" ${taCode(m.TA) === 1 ? 'selected' : ''}>상담사</option>
+          <option value="2" ${taCode(m.TA) === 2 ? 'selected' : ''}>교사</option>
         </select>
       </td>
       <td class="edit-cell">
@@ -147,6 +157,8 @@ async function handleSaveEdit(id) {
       : el.value;
   });
 
+  if ('TA' in patch) patch.TA = Number(patch.TA);
+
   const entry = entries.find((m) => m.NTT_ID === id);
   if (!entry) return;
 
@@ -173,7 +185,7 @@ function showError(msg) {
 
 function resetForm() {
   [els.fId, els.fGu, els.fName].forEach((el) => (el.value = ''));
-  els.fTa.value      = 'N';
+  els.fTa.value      = '0';
   els.fMission.value = 'N';
   els.error.classList.remove('show');
   els.fId.readOnly   = false;
@@ -197,7 +209,7 @@ async function handleSave() {
   els.error.classList.remove('show');
   els.saveBtn.disabled = true;
 
-  const input = { NTT_ID: id, GU: gu || null, NAME: name, TA: els.fTa.value, ISMISSION: els.fMission.value };
+  const input = { NTT_ID: id, GU: gu || null, NAME: name, TA: Number(els.fTa.value), ISMISSION: els.fMission.value };
 
   try {
     const created = await memberApi.create(input);

@@ -83,10 +83,7 @@ function render(loadFailed) {
   }).join('');
 }
 
-export async function initCheckTab() {
-  cacheEls();
-  els.searchBtn.addEventListener('click', applySearch);
-  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
+async function load() {
   els.body.innerHTML = `<tr><td colspan="9"><div class="loading">불러오는 중…</div></td></tr>`;
   try {
     entries = await checkApi.list();
@@ -95,4 +92,16 @@ export async function initCheckTab() {
     entries = [];
     render(true);
   }
+}
+
+/* 탭 화면 캡처 전에 최신 데이터로 갱신하기 위해 호출 */
+export async function reloadCheck() {
+  if (els.body) await load();
+}
+
+export async function initCheckTab() {
+  cacheEls();
+  els.searchBtn.addEventListener('click', applySearch);
+  els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
+  await load();
 }

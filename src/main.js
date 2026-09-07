@@ -5,6 +5,7 @@ import { initCheckTab }    from './tabs/check.js';
 import { initMemberTab }   from './tabs/member.js';
 import { initMeetSchedTab, reloadMeetSched } from './tabs/meetview.js';
 import { initZoneStatTab, reloadZoneStat } from './tabs/zonestat.js';
+import { initScreenshotButtons } from './screenshot.js';
 
 const TAB_NAMES = ['zonestat', 'meetsched', 'check', 'schedule', 'outreach', 'member'];
 
@@ -31,6 +32,7 @@ function setupTabs() {
 
 async function main() {
   setupTabs();
+  initScreenshotButtons();
   await Promise.all([
     initOutreachTab(), initScheduleTab(), initCheckTab(), initMemberTab(), initMeetSchedTab(), initZoneStatTab(),
   ]);
