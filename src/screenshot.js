@@ -30,73 +30,135 @@ function stamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
 }
 
-/* 대상 패널을 가로 고정폭으로 복제해 PNG(Blob)로 렌더.
-   폭 = max(1920, 내용 자연 너비) → 표가 넓어도 안 잘리고 전부 보임. 항상 가로형.
-   화면에 안 보이도록 translate 로 밀어두고, 렌더 시엔 transform:none 을 적용해 원점에서 캡처. */
-async function capture(panelId) {
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const raf  = () => new Promise((r) => requestAnimationFrame(r));
+
+/* iframe 캡처 실패 시 폴백 — 현재 문서에서 클론 후 폭 고정 + 스크롤 제약만 해제.
+   (모바일에서 실행하면 모바일 레이아웃이 나올 수 있음 — 최후의 수단) */
+async function captureInline(panelId) {
   const src = document.getElementById(panelId);
   if (!src) throw new Error('대상 화면을 찾을 수 없습니다.');
 
   const holder = document.createElement('div');
   holder.setAttribute('aria-hidden', 'true');
   holder.style.cssText =
-    'position:fixed; top:0; left:0;' +
-    `background:#ffffff; padding:${PAD}px; box-sizing:content-box;` +
+    `position:fixed; top:0; left:0; background:#fff; padding:${PAD}px; box-sizing:content-box;` +
     'transform:translateX(-200vw); pointer-events:none;';
 
   const clone = src.cloneNode(true);
   clone.removeAttribute('id');
-  clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));   // 중복 id 방지
+  clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
   clone.style.display = 'block';
-  clone.style.width = 'max-content';   // 우선 내용 자연 너비로 펼침
+  clone.style.width = 'max-content';
   clone.style.maxWidth = 'none';
   holder.appendChild(clone);
   document.body.appendChild(holder);
 
-  // 모바일/스크롤 제약 해제 — 좁은 화면에서 눌러도 넓은 화면처럼 펼쳐서 캡처
   clone.querySelectorAll('table').forEach((t) => {
-    t.style.display = 'table';
-    t.style.width = 'auto';
-    t.style.whiteSpace = 'normal';
+    t.style.display = 'table'; t.style.width = 'auto'; t.style.whiteSpace = 'normal';
   });
   clone.querySelectorAll('*').forEach((el) => {
     const ox = getComputedStyle(el).overflowX;
-    if (ox === 'auto' || ox === 'scroll') {
-      el.style.overflow = 'visible';
-      el.style.overflowX = 'visible';
-    }
+    if (ox === 'auto' || ox === 'scroll') { el.style.overflow = 'visible'; el.style.overflowX = 'visible'; }
   });
 
-  // 레이아웃/폰트 반영 대기
-  await new Promise((r) => setTimeout(r, 60));
-  await new Promise((r) => requestAnimationFrame(r));
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready; } catch (_) { /* noop */ }
-  }
+  await wait(60); await raf();
+  if (document.fonts?.ready) { try { await document.fonts.ready; } catch (_) { /* noop */ } }
 
-  // 내용이 큰 화면 기준으로 가로 고정폭 결정
   const natural = Math.max(clone.scrollWidth, Math.ceil(clone.getBoundingClientRect().width));
   const width = Math.min(CAPTURE_MAX_WIDTH, Math.max(CAPTURE_MIN_WIDTH, natural));
-  clone.style.width = `${width}px`;    // 고정폭으로 재레이아웃
+  clone.style.width = `${width}px`;
   holder.style.width = `${width}px`;
-  await new Promise((r) => requestAnimationFrame(r));
+  await raf();
 
   const opts = {
     width: width + PAD * 2,
     height: Math.max(holder.scrollHeight, holder.offsetHeight, 1),
-    backgroundColor: '#ffffff',
-    pixelRatio: 1,
-    cacheBust: true,
-    skipAutoScale: true,
+    backgroundColor: '#ffffff', pixelRatio: 1, cacheBust: true, skipAutoScale: true,
     style: { transform: 'none', transformOrigin: 'top left', left: '0', top: '0' },
   };
-
   try {
-    await htmlToImage.toBlob(holder, opts);          // 1차: 첫 호출이 비어 나오는 이슈 회피용 워밍업
-    return await htmlToImage.toBlob(holder, opts);   // 2차: 실제 사용
+    await htmlToImage.toBlob(holder, opts);
+    return await htmlToImage.toBlob(holder, opts);
   } finally {
     holder.remove();
   }
+}
+
+/* 대상 패널을 '데스크톱 폭(≥1920) iframe' 안에서 렌더해 PNG(Blob)로 캡처.
+   - iframe 은 자체 뷰포트를 가지므로 모바일 @media 규칙이 걸리지 않음
+     → 모바일에서 눌러도 컴퓨터 화면 레이아웃으로 전송됨.
+   - 폭 = max(1920, 내용 자연 너비) → 넓은 표도 안 잘리고 전부 보임. 항상 가로형. */
+async function captureViaIframe(panelId) {
+  const src = document.getElementById(panelId);
+  if (!src) throw new Error('대상 화면을 찾을 수 없습니다.');
+
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.cssText =
+    'position:fixed; left:0; top:0; border:0; background:#fff;' +
+    `width:${CAPTURE_MIN_WIDTH}px; height:800px;` +
+    'transform:translateX(-200vw); pointer-events:none;';
+  document.body.appendChild(frame);
+
+  try {
+    const idoc = frame.contentDocument;
+    idoc.open();
+    idoc.write('<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>');
+    idoc.close();
+
+    // 페이지 스타일/폰트 그대로 이식 (iframe 뷰포트가 1920 이라 데스크톱 규칙이 적용됨)
+    document.querySelectorAll('style, link[rel="stylesheet"]').forEach((n) => {
+      idoc.head.appendChild(n.cloneNode(true));
+    });
+    idoc.documentElement.style.background = '#fff';
+    idoc.body.style.cssText = `margin:0; background:#fff; padding:${PAD}px;`;
+
+    const clone = src.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));   // 중복 id 방지
+    clone.style.display = 'block';
+    clone.style.maxWidth = 'none';
+    idoc.body.appendChild(clone);
+
+    await wait(150);
+    await raf();
+    if (idoc.fonts && idoc.fonts.ready) { try { await idoc.fonts.ready; } catch (_) { /* noop */ } }
+
+    // 내용이 넓으면 iframe 폭 확장해서 안 잘리게
+    const natural = Math.max(
+      clone.scrollWidth, idoc.body.scrollWidth, idoc.documentElement.scrollWidth,
+    );
+    const width = Math.min(CAPTURE_MAX_WIDTH, Math.max(CAPTURE_MIN_WIDTH, natural + PAD * 2));
+    frame.style.width = `${width}px`;
+    await wait(80);
+    await raf();
+
+    const opts = {
+      width,
+      height: Math.max(idoc.body.scrollHeight, idoc.documentElement.scrollHeight, 1),
+      backgroundColor: '#ffffff',
+      pixelRatio: 1,
+      cacheBust: true,
+      skipAutoScale: true,
+    };
+
+    await htmlToImage.toBlob(idoc.body, opts);          // 워밍업(첫 호출 blank 회피)
+    return await htmlToImage.toBlob(idoc.body, opts);   // 실제
+  } finally {
+    frame.remove();
+  }
+}
+
+/* iframe 방식 우선, 실패 시 현재-문서 방식으로 폴백 */
+async function capture(panelId) {
+  try {
+    const blob = await captureViaIframe(panelId);
+    if (blob && blob.size > 0) return blob;
+  } catch (err) {
+    console.warn('[screenshot] iframe 캡처 실패 → 폴백:', err);
+  }
+  return captureInline(panelId);
 }
 
 async function run(panelId) {
