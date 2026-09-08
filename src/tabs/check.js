@@ -7,6 +7,13 @@ let nameQuery = '';
 
 const els = {};
 
+/* 1·2·3차: Y 면 체크 표시, N/공백/없음 이면 빈 칸 */
+function tmMark(v) {
+  return String(v ?? '').trim().toUpperCase() === 'Y'
+    ? '<span class="tm-check" title="완료">✓</span>'
+    : '';
+}
+
 function cacheEls() {
   els.stats  = document.getElementById('check-stats');
   els.body   = document.getElementById('check-body');
@@ -65,18 +72,18 @@ function render(loadFailed) {
   }
 
   els.body.innerHTML = list.map((c) => {
-    const c1 = c.check1 ?? c.c1 ?? '';
-    const c2 = c.check2 ?? c.c2 ?? '';
-    const c3 = c.check3 ?? c.c3 ?? '';
+    const c1 = tmMark(c.check1 ?? c.c1);
+    const c2 = tmMark(c.check2 ?? c.c2);
+    const c3 = tmMark(c.check3 ?? c.c3);
     return `
       <tr>
         <td class="mono">${c.date}</td>
         <td>${c.zone}</td>
         <td>${c.name}</td>
         <td>${c.tm === 'O' ? '<span class="check-tag done">완료</span>' : '<span class="check-tag pending">대기</span>'}</td>
-        <td>${c1}</td>
-        <td>${c2}</td>
-        <td>${c3}</td>
+        <td class="tm-col">${c1}</td>
+        <td class="tm-col">${c2}</td>
+        <td class="tm-col">${c3}</td>
         <td><span class="status-pill ${c.status === '진행' ? 'ongoing' : 'stopped'}">${c.status}</span></td>
         <td>${c.note ?? ''}</td>
       </tr>`;

@@ -52,7 +52,7 @@ function section(title, personCol, list) {
       <td>${m.gyosa || '-'}</td>
       <td class="sched2-col-goal">${m.meetCn || ''}</td>
       <td class="sched2-col-goal">${m.goal || ''}</td>
-      <td><span class="ms-view-badge${m.feedbackYn === 'Y' ? ' on' : ''}">${m.feedbackYn === 'Y' ? '완료' : '대기'}</span></td>
+      <td><span class="ms-view-badge ms-fb${m.feedbackYn === 'Y' ? ' on' : ''}">${m.feedbackYn === 'Y' ? '완료' : '대기'}</span></td>
       <td><span class="ms-view-badge${prog.cls ? ` ${prog.cls}` : ''}">${prog.text}</span></td>
       <td class="sched2-col-goal">${m.cancelRs || ''}</td>
     </tr>`;

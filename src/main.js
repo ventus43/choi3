@@ -1,7 +1,7 @@
 import { ensureAuth } from './auth.js';
 import { initOutreachTab } from './tabs/outreach.js';
 import { initScheduleTab, reloadSchedule } from './tabs/schedule.js';
-import { initCheckTab }    from './tabs/check.js';
+import { initCheckTab, reloadCheck } from './tabs/check.js';
 import { initMemberTab }   from './tabs/member.js';
 import { initMeetSchedTab, reloadMeetSched } from './tabs/meetview.js';
 import { initZoneStatTab, reloadZoneStat } from './tabs/zonestat.js';
@@ -14,6 +14,7 @@ const TAB_RELOAD = {
   schedule: reloadSchedule,
   zonestat: reloadZoneStat,
   meetsched: reloadMeetSched,
+  check: reloadCheck,
 };
 
 function setupTabs() {

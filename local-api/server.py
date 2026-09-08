@@ -8,6 +8,24 @@ import pymysql
 from flask import Flask, request, jsonify
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
+
+def _load_env_file(path):
+    """KEY=VALUE 파일을 읽어 os.environ 에 채운다. 이미 있는 키는 유지(실제 env 우선). 의존성 없음."""
+    try:
+        with open(path, encoding='utf-8') as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except OSError:
+        pass
+
+
+# 텔레그램 토큰/방 등은 gventus 와 공유하는 이 파일에서 읽는다. (choi3.env / 실제 env 가 있으면 그게 우선)
+_load_env_file(os.environ.get('SHARED_ENV_FILE', '/home/ubuntu/report/.env'))
+
 app = Flask(__name__)
 
 DB = dict(host=os.environ.get('DB_HOST', '127.0.0.1'), port=int(os.environ.get('DB_PORT', 3306)),
@@ -80,13 +98,16 @@ def member_create():
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            # NTT_ID 는 클라이언트가 안 보냄 — DB 에서 MAX+1 로 채번
+            cur.execute('SELECT COALESCE(MAX(NTT_ID), 0) + 1 AS n FROM CHOIMEMBER')
+            new_id = cur.fetchone()['n']
             cur.execute(
                 'INSERT INTO CHOIMEMBER (NTT_ID, GU, NAME, TA, ISMISSION) VALUES (%s,%s,%s,%s,%s)',
                 # TA: 0=일반 / 1=상담사 / 2=교사 (기본 0)
-                (body.get('NTT_ID'), body.get('GU'), body.get('NAME'), body.get('TA', 0), body.get('ISMISSION','N'))
+                (new_id, body.get('GU'), body.get('NAME'), body.get('TA', 0), body.get('ISMISSION','N'))
             )
             conn.commit()
-            cur.execute('SELECT NTT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER WHERE NTT_ID=%s', (body.get('NTT_ID'),))
+            cur.execute('SELECT NTT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER WHERE NTT_ID=%s', (new_id,))
             return jsonify(cur.fetchone()), 201
     finally:
         conn.close()
@@ -536,9 +557,9 @@ def meeting_delete(mid):
 
 # ── /screenshot  (탭 화면 캡처 → 텔레그램 전송) ──────────────────────────────
 # 프론트가 만든 PNG 를 받아 텔레그램 방으로 전송한다.
-# 운영에서는 아래 값을 환경변수로 덮어쓸 것 (choi3.env 등).
-TELEGRAM_BOT_TOKEN       = os.environ.get('TELEGRAM_BOT_TOKEN', '8231818005:AAHTZz07GMXJdxWmA2K21lyLfPhQsr2NsDQ')
-TELEGRAM_SCREENSHOT_CHAT = os.environ.get('TELEGRAM_SCREENSHOT_CHAT', '-5464033116')
+# 토큰/방은 반드시 환경변수로 주입 (choi3.env). 기본값 없음 — 미설정이면 503.
+TELEGRAM_BOT_TOKEN       = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+TELEGRAM_SCREENSHOT_CHAT = os.environ.get('TELEGRAM_SCREENSHOT_CHAT', '').strip()
 
 
 def _telegram_upload(method, field, caption, data, content_type='image/png'):
@@ -574,6 +595,8 @@ def _telegram_upload(method, field, caption, data, content_type='image/png'):
 
 @app.route('/screenshot', methods=['POST'])
 def screenshot_send():
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_SCREENSHOT_CHAT:
+        return jsonify({'message': 'TELEGRAM_BOT_TOKEN / TELEGRAM_SCREENSHOT_CHAT 가 설정되지 않았습니다.'}), 503
     f = request.files.get('image')
     if f is None:
         return jsonify({'message': '이미지가 없습니다.'}), 400

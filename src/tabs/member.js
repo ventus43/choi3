@@ -17,7 +17,6 @@ function cacheEls() {
   els.cancelBtn   = document.getElementById('cancel-member');
   els.saveBtn     = document.getElementById('save-member');
   els.error       = document.getElementById('member-error');
-  els.fId         = document.getElementById('mf-id');
   els.fGu         = document.getElementById('mf-gu');
   els.fName       = document.getElementById('mf-name');
   els.fTa         = document.getElementById('mf-ta');
@@ -184,42 +183,37 @@ function showError(msg) {
 }
 
 function resetForm() {
-  [els.fId, els.fGu, els.fName].forEach((el) => (el.value = ''));
+  [els.fGu, els.fName].forEach((el) => (el.value = ''));
   els.fTa.value      = '0';
   els.fMission.value = 'N';
   els.error.classList.remove('show');
-  els.fId.readOnly   = false;
   els.saveBtn.dataset.mode = 'create';
 }
 
 async function handleSave() {
-  const id   = Number(els.fId.value);
   const gu   = Number(els.fGu.value);
   const name = els.fName.value.trim();
 
-  if (!id || !name) {
-    showError('고유 ID와 이름은 필수 입력입니다.');
-    return;
-  }
-  if (entries.some((m) => m.NTT_ID === id)) {
-    showError(`ID ${id}는 이미 존재합니다.`);
+  if (!name) {
+    showError('이름은 필수 입력입니다.');
     return;
   }
 
   els.error.classList.remove('show');
   els.saveBtn.disabled = true;
 
-  const input = { NTT_ID: id, GU: gu || null, NAME: name, TA: Number(els.fTa.value), ISMISSION: els.fMission.value };
+  // NTT_ID 는 서버(DB)에서 채번 — 여기선 안 보냄
+  const input = { GU: gu || null, NAME: name, TA: Number(els.fTa.value), ISMISSION: els.fMission.value };
 
   try {
     const created = await memberApi.create(input);
     entries.push(created);
   } catch (err) {
-    entries.push(input);
-    showError(`로컬에만 저장됐습니다 (API 오류: ${err.message})`);
-  } finally {
+    showError(`저장 실패 (API 오류: ${err.message})`);
     els.saveBtn.disabled = false;
+    return;
   }
+  els.saveBtn.disabled = false;
 
   resetForm();
   els.form.classList.remove('open');
