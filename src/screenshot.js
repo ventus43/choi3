@@ -12,7 +12,9 @@ const TARGETS = {
   'panel-check':     { label: 'TM 현황',      reload: reloadCheck },
 };
 
-const CAPTURE_WIDTH = 1920;   // 가로 고정, 세로는 내용 전체
+const CAPTURE_MIN_WIDTH = 1920;   // 가로 고정 하한 (항상 가로형 landscape)
+const CAPTURE_MAX_WIDTH = 6000;   // 캔버스 폭 폭주 방지용 상한
+const PAD = 24;
 
 let statusEl = null;
 
@@ -28,7 +30,8 @@ function stamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
 }
 
-/* 대상 패널을 1920px 폭으로 복제해 PNG(Blob)로 렌더.
+/* 대상 패널을 가로 고정폭으로 복제해 PNG(Blob)로 렌더.
+   폭 = max(1920, 내용 자연 너비) → 표가 넓어도 안 잘리고 전부 보임. 항상 가로형.
    화면에 안 보이도록 translate 로 밀어두고, 렌더 시엔 transform:none 을 적용해 원점에서 캡처. */
 async function capture(panelId) {
   const src = document.getElementById(panelId);
@@ -37,18 +40,32 @@ async function capture(panelId) {
   const holder = document.createElement('div');
   holder.setAttribute('aria-hidden', 'true');
   holder.style.cssText =
-    `position:fixed; top:0; left:0; width:${CAPTURE_WIDTH}px;` +
-    'background:#ffffff; padding:24px; box-sizing:border-box;' +
+    'position:fixed; top:0; left:0;' +
+    `background:#ffffff; padding:${PAD}px; box-sizing:content-box;` +
     'transform:translateX(-200vw); pointer-events:none;';
 
   const clone = src.cloneNode(true);
   clone.removeAttribute('id');
   clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));   // 중복 id 방지
   clone.style.display = 'block';
-  clone.style.width = '100%';
+  clone.style.width = 'max-content';   // 우선 내용 자연 너비로 펼침
   clone.style.maxWidth = 'none';
   holder.appendChild(clone);
   document.body.appendChild(holder);
+
+  // 모바일/스크롤 제약 해제 — 좁은 화면에서 눌러도 넓은 화면처럼 펼쳐서 캡처
+  clone.querySelectorAll('table').forEach((t) => {
+    t.style.display = 'table';
+    t.style.width = 'auto';
+    t.style.whiteSpace = 'normal';
+  });
+  clone.querySelectorAll('*').forEach((el) => {
+    const ox = getComputedStyle(el).overflowX;
+    if (ox === 'auto' || ox === 'scroll') {
+      el.style.overflow = 'visible';
+      el.style.overflowX = 'visible';
+    }
+  });
 
   // 레이아웃/폰트 반영 대기
   await new Promise((r) => setTimeout(r, 60));
@@ -57,8 +74,15 @@ async function capture(panelId) {
     try { await document.fonts.ready; } catch (_) { /* noop */ }
   }
 
+  // 내용이 큰 화면 기준으로 가로 고정폭 결정
+  const natural = Math.max(clone.scrollWidth, Math.ceil(clone.getBoundingClientRect().width));
+  const width = Math.min(CAPTURE_MAX_WIDTH, Math.max(CAPTURE_MIN_WIDTH, natural));
+  clone.style.width = `${width}px`;    // 고정폭으로 재레이아웃
+  holder.style.width = `${width}px`;
+  await new Promise((r) => requestAnimationFrame(r));
+
   const opts = {
-    width: CAPTURE_WIDTH,
+    width: width + PAD * 2,
     height: Math.max(holder.scrollHeight, holder.offsetHeight, 1),
     backgroundColor: '#ffffff',
     pixelRatio: 1,
