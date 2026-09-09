@@ -333,6 +333,16 @@
     .form-grid.cols-2{ grid-template-columns: 1fr 1fr; }
     .form-grid .span-2{ grid-column: span 2; }
     .form-grid .span-4{ grid-column: span 4; }
+    /* 섭외자 추가: 첫 줄(이름/티엠자 ↔ 이름/인도자/교사)과 구역 줄(사이에 지인 체크박스) */
+    .of-first-row, .of-zone-row{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+    .of-first-row .of-ff{ flex:1 1 140px; min-width:0; }
+    .of-zone-row .of-ff-auto{ flex:0 0 auto; }
+    .of-ff[hidden]{ display:none; }
+    .of-jiin{
+      display:inline-flex; align-items:center; gap:6px; margin:0; margin-top:18px;
+      font-size:12px; font-weight:700; color:var(--ink-soft); white-space:nowrap; cursor:pointer;
+    }
+    .of-jiin input{ width:auto; padding:0; margin:0; box-shadow:none; accent-color: var(--primary); }
     label{
       display:block; font-size: 11.5px; font-weight: 700; color: var(--ink-soft);
       margin-bottom: 5px; letter-spacing: 0.01em;
@@ -445,6 +455,16 @@
       background: var(--primary); color:#fff;
       flex: none;
     }
+    /* 시간장소·목표 인라인 수정 입력칸 — 해당 셀 너비에 맞춤(가로로 늘리지 않음) */
+    .sched2-inline-input{
+      width: 100%; max-width: 100%; box-sizing: border-box;
+      font-family: inherit; font-size: 11.5px; padding: 3px 6px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    }
+    .sched2-inline-input:focus{ outline:none; border-color: var(--primary); }
+    /* 일정 목록 행 우측 끝 "수정" 열 — 창출 목록과 동일한 btn-ghost btn-sm 사용 */
+    .sched2-table th:nth-child(11), .sched2-table td:nth-child(11){ width: 58px; }
+    .sched2-table td:nth-child(11) .btn-sm{ padding: 4px 8px; }
     .sched2-fb{
       appearance:none; cursor:pointer; font-family:inherit;
       font-size: 10.5px; font-weight:700; padding: 2px 9px; border-radius: 999px;
@@ -575,14 +595,16 @@
       .sched2-table td:nth-child(7){ grid-column: 2; grid-row: 3; }
       .sched2-table td:nth-child(8){ grid-column: 2; grid-row: 4; }
       .sched2-table td:nth-child(9){ grid-column: 3; grid-row: 1; }
-      .sched2-table td:nth-child(10){ grid-column: 3; grid-row: 2 / 5; }
+      .sched2-table td:nth-child(10){ grid-column: 3; grid-row: 2 / 4; }
+      .sched2-table td:nth-child(11){ grid-column: 3; grid-row: 4; }
       /* col1·col2 셀에 세로 구분선 */
-      .sched2-table td:not(:nth-child(9)):not(:nth-child(10)){
+      .sched2-table td:not(:nth-child(9)):not(:nth-child(10)):not(:nth-child(11)){
         border-right: 1px solid var(--border); padding-right: 8px !important;
       }
       .sched2-table td:nth-child(4), .sched2-table td:nth-child(5),
       .sched2-table td:nth-child(7), .sched2-table td:nth-child(8),
-      .sched2-table td:nth-child(9), .sched2-table td:nth-child(10){ padding-left: 4px !important; }
+      .sched2-table td:nth-child(9), .sched2-table td:nth-child(10),
+      .sched2-table td:nth-child(11){ padding-left: 4px !important; }
       .sched2-table td::before{
         content: attr(data-label);
         font-size: 10.5px; font-weight: 700; color: var(--ink-soft);
@@ -1036,6 +1058,158 @@
       .entry-card > .add-meet-wrap .btn-sm{ width: 100%; justify-content: center; white-space: nowrap; padding: 5px 5px; }
       .entry-card > .person-form{ grid-column: 1 / -1; margin-top: 6px; }
     }
+
+    /* ============================================================
+       모바일 사용성 보강
+       - 탭/필터/등록 버튼의 터치 영역을 확보하고, 정보 밀도를 낮춤
+       - 가로 표는 카드형 행으로 바꿔 한 손으로 읽기 쉽게 처리
+       ============================================================ */
+    @media (max-width: 640px){
+      html{ -webkit-text-size-adjust: 100%; }
+      body{ min-width: 320px; }
+
+      .app-header{ padding: 18px 16px 0; }
+      .brand h1{ font-size: 20px; line-height: 1.25; }
+      .header-sub{ display: none; }
+
+      .screenshot-bar-wrap{ margin-top: 12px; }
+      .screenshot-bar{
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 8px 12px;
+        gap: 6px;
+      }
+      .screenshot-bar::-webkit-scrollbar{ display:none; }
+      .screenshot-bar button{ flex: 0 0 auto; min-height: 36px; }
+      .ss-label, .ss-status{ display:none; }
+
+      .tabbar{
+        margin-top: 14px !important;
+        gap: 6px;
+        padding: 0 12px;
+        scroll-padding-inline: 12px;
+        scroll-snap-type: x proximity;
+      }
+      .tabbar::after{
+        content:"";
+        flex: 0 0 6px;
+      }
+      .tab{
+        min-height: 44px;
+        padding: 11px 14px 13px;
+        font-size: 13px;
+        scroll-snap-align: start;
+      }
+      .tab .count{ font-size: 10px; margin-left: 4px; }
+      .tabbar-edit{ gap: 6px; margin-left: 2px; padding-left: 8px; }
+
+      .stage{ margin-bottom: 40px; padding: 0 12px; }
+      .panel{
+        padding: 16px 12px 20px;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 1px 2px rgba(38,42,32,.06), 0 10px 24px rgba(38,42,32,.06);
+      }
+      .panel-head{ align-items: stretch; margin-bottom: 16px; }
+      .panel-head h2{ font-size: 18px; }
+      .panel-head p{ font-size: 12px; line-height: 1.55; }
+      .panel-head-left, .panel-head-right, .panel-head-tools{ width:100%; }
+      .panel-head-right{ display:flex; flex-direction:column; gap:10px; }
+      .panel-head-tools{ display:flex; flex-wrap:wrap; gap:8px; }
+      .panel-head-zone{ width:100%; min-height:44px; margin-top:8px; }
+
+      .btn{ min-height:44px; padding:10px 14px; font-size:14px; justify-content:center; }
+      .btn-sm{ min-height:38px; padding:8px 11px; font-size:13px; }
+      .btn-primary{ width:100%; }
+      .panel-head .btn-primary{ width:100%; }
+      .btn-plus{ flex:0 0 20px; }
+
+      .filter-bar{ align-items:stretch; gap:10px; margin:14px 0 12px; }
+      .filter-search-group{ width:100%; margin-left:0; }
+      .filter-search{ flex:1; min-width:0; min-height:42px; font-size:16px; }
+      .filter-select{ min-height:42px; font-size:16px; }
+      .filter-count{ width:100%; margin:0 !important; padding-left:2px; }
+      .seg-group{ width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:2px; scrollbar-width:none; }
+      .seg-group::-webkit-scrollbar{ display:none; }
+      .seg-btn{ flex:0 0 auto; min-height:40px; padding:8px 13px; font-size:13px; }
+
+      .date-range{ display:grid; grid-template-columns:1fr 1fr; width:100%; gap:8px; }
+      .date-range input[type="date"]{ width:100%; min-height:42px; font-size:16px; }
+      .date-range input[type="text"]{ grid-column:1 / -1; }
+      .date-range .btn{ width:100%; }
+
+      .add-form{ margin-top:12px; padding:14px 12px; }
+      .of-first-row, .of-zone-row{ gap:10px; }
+      .of-first-row .of-ff{ flex-basis:100%; }
+      .of-zone-row .of-ff-auto{ flex:1 1 120px; }
+      .of-jiin{ min-height:40px; margin-top:18px; padding:0 4px; }
+      label{ font-size:12px; margin-bottom:6px; }
+      input, select{ min-height:44px; padding:10px 12px; font-size:16px; }
+      .tm-checks{ gap:8px; flex-wrap:wrap; }
+      .tm-checks label{ min-height:38px; padding:0 4px; font-size:13px; }
+      .form-actions{ gap:8px; }
+      .form-actions .btn{ flex:1 1 calc(50% - 4px); }
+      .form-actions .btn:last-child{ flex-basis:100%; }
+
+      .day-group{ margin-bottom:18px; }
+      .day-label{ font-size:12px; padding:5px 10px; }
+      .entry-list{ gap:8px; }
+      .entry-card{ border-radius:10px; }
+      .entry-main .meet-inline, .entry-main .meta-inline{ font-size:11.5px; }
+      .person-form{ padding:12px 10px; }
+      .pf-row{ align-items:stretch; flex-wrap:wrap; }
+      .pf-role{ width:100%; }
+      .pf-gu{ width:72px; min-height:40px; }
+      .pf-name{ min-height:40px; }
+
+      .stat-row{ gap:8px; }
+      .stat{ min-height:86px; padding:14px 10px; }
+
+      /* 일반 테이블(TM 현황/구역 관리): 열을 숨기지 않고 한 행을 카드로 표현 */
+      #panel-check table, #member-table{ display:block; overflow:visible; white-space:normal; }
+      #panel-check table thead, #member-table thead{ display:none; }
+      #panel-check table tbody, #member-table tbody{ display:block; }
+      #panel-check table tr, #member-table tbody tr{
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:0 12px;
+        margin-bottom:10px;
+        padding:10px 12px;
+        border:1px solid var(--border);
+        border-radius:10px;
+        background:var(--surface);
+      }
+      #panel-check table td, #member-table tbody td{
+        display:flex;
+        min-width:0;
+        flex-direction:column;
+        gap:2px;
+        padding:6px 0;
+        border:none;
+        font-size:13px;
+        white-space:normal;
+        overflow-wrap:anywhere;
+      }
+      #panel-check table td::before, #member-table tbody td::before{
+        content:attr(data-label);
+        color:var(--ink-soft);
+        font-size:10.5px;
+        font-weight:700;
+      }
+      #panel-check table td:nth-child(3), #member-table tbody td:nth-child(2){ font-size:15px; font-weight:800; }
+      #panel-check table td:nth-child(9), #member-table tbody td:nth-last-child(2){ grid-column:1; }
+      #panel-check table td:nth-child(10), #member-table tbody td:last-child{ grid-column:2; }
+      #member-table tbody td:last-child, #member-table tbody td:nth-last-child(2){ align-items:stretch; }
+      #member-table .btn-icon{ min-height:38px; border:1px solid var(--border); }
+
+      .zv-wrap{ margin-inline:-12px; padding-inline:12px; }
+      .zv-table{ min-width:700px; }
+      .ms-row{ grid-template-columns:38px 28px minmax(68px,1fr) minmax(0,1.6fr); gap:6px; padding:8px 4px; }
+      .ms-row .ms-tag{ grid-column:4; justify-self:start; }
+      .sched-card2{ align-items:stretch; padding:12px; }
+      .sched-grid{ grid-template-columns:1fr; gap:0; }
+      .sc-goal, .sc-place{ border-left:none; padding-left:0; }
+    }
   </style>
 </head>
 <body>
@@ -1096,21 +1270,34 @@
 
     <div class="add-form" id="outreach-form">
       <div class="form-grid cols-2">
-        <div>
-          <label class="req">이름</label>
-          <input type="text" id="of-name" placeholder="예: 최미슬">
+        <div class="span-2 of-first-row">
+          <div class="of-ff">
+            <label class="req">이름</label>
+            <input type="text" id="of-name" placeholder="예: 최미슬">
+          </div>
+          <div class="of-ff" data-jiin-hide>
+            <label>티엠자</label>
+            <input type="text" id="of-tm-name" placeholder="예: 김상담">
+          </div>
+          <div class="of-ff" data-jiin-show hidden>
+            <label>인도자</label>
+            <input type="text" id="of-indo" placeholder="예: 김인도">
+          </div>
+          <div class="of-ff" data-jiin-show hidden>
+            <label>교사</label>
+            <input type="text" id="of-gyosa" placeholder="예: 박교사">
+          </div>
         </div>
-        <div>
-          <label>티엠자</label>
-          <input type="text" id="of-tm-name" placeholder="예: 김상담">
-        </div>
-        <div>
-          <label class="req">구역1</label>
-          <div class="seg-group" id="of-in-gu-seg"></div>
-        </div>
-        <div>
-          <label>구역2</label>
-          <div class="seg-group" id="of-gyo-gu-seg"></div>
+        <div class="span-2 of-zone-row">
+          <div class="of-ff of-ff-auto">
+            <label class="req">구역1</label>
+            <div class="seg-group" id="of-in-gu-seg"></div>
+          </div>
+          <label class="of-jiin"><input type="checkbox" id="of-jiin"> 지인</label>
+          <div class="of-ff of-ff-auto">
+            <label>구역2</label>
+            <div class="seg-group" id="of-gyo-gu-seg"></div>
+          </div>
         </div>
         <div>
           <label class="req">날짜</label>
@@ -1191,6 +1378,8 @@
         <h2>TM 현황</h2>
         <p>섭외자별 TM 및 1·2·3차 점검 진행 상태입니다.</p>
       </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="check-stopped-toggle" aria-pressed="false"
+        title="만남 진행 여부 확정이 있는 인원은 제외하고, 일주일 전까지 등록된 중단 인원만 표시">중단인원확인</button>
     </div>
 
     <div class="filter-bar" id="check-filter-bar">
@@ -1207,7 +1396,7 @@
     <table>
       <thead>
       <tr>
-        <th>섭외일자</th><th>구역</th><th>이름</th><th>TM</th>
+        <th>섭외일자</th><th>구역</th><th>이름</th><th>티엠자</th><th>TM</th>
         <th>1차 점검</th><th>2차 점검</th><th>3차 점검</th><th>상태</th><th>비고</th>
       </tr>
       </thead>

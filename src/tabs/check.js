@@ -4,6 +4,7 @@ import { renderZoneSeg, nameMatch } from '../utils.js';
 let entries = [];
 let guFilter  = '';   // '' = 전체 구역
 let nameQuery = '';
+let stoppedOnly = false;   // '중단인원확인' 토글 상태
 
 const els = {};
 
@@ -14,6 +15,31 @@ function tmMark(v) {
     : '';
 }
 
+/* '중단인원확인' 토글 필터
+   - 상태가 '중단'
+   - 1·2·3차 중 만남 진행 여부 확정 표시(Y / 확답 / 확정)가 하나도 없음
+   - 섭외일자가 오늘로부터 7일 이상 지난 건(일주일 전까지 등록분) */
+function hasConfirmedMeeting(c) {
+  return [c.check1 ?? c.c1, c.check2 ?? c.c2, c.check3 ?? c.c3].some((v) => {
+    const s = String(v ?? '').trim();
+    return s.toUpperCase() === 'Y' || s === '확답' || s === '확정';
+  });
+}
+
+function daysSince(dateStr) {
+  const s = String(dateStr ?? '').trim().replace(/\./g, '-');
+  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return Infinity;   // 날짜 없으면 오래된 건으로 간주해 노출
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const n = new Date();
+  const today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.floor((today - d) / 86400000);
+}
+
+function isStoppedReviewTarget(c) {
+  return c.status === '중단' && !hasConfirmedMeeting(c) && daysSince(c.date) >= 7;
+}
+
 function cacheEls() {
   els.stats  = document.getElementById('check-stats');
   els.body   = document.getElementById('check-body');
@@ -22,6 +48,7 @@ function cacheEls() {
   els.search   = document.getElementById('check-search');
   els.searchBtn = document.getElementById('check-search-btn');
   els.fcount   = document.getElementById('check-filtered-count');
+  els.stoppedToggle = document.getElementById('check-stopped-toggle');
 }
 
 function applySearch() {
@@ -31,7 +58,9 @@ function applySearch() {
 
 function filtered() {
   return entries.filter((c) =>
-    (!guFilter || String(c.zone) === guFilter) && nameMatch(c.name, nameQuery));
+    (!guFilter || String(c.zone) === guFilter) &&
+    nameMatch(c.name, nameQuery) &&
+    (!stoppedOnly || isStoppedReviewTarget(c)));
 }
 
 function render(loadFailed) {
@@ -41,7 +70,7 @@ function render(loadFailed) {
     els.stats.innerHTML = '';
     els.seg.innerHTML = '';
     els.fcount.textContent = '';
-    els.body.innerHTML = `<tr><td colspan="9"><div class="error-banner">점검 현황을 불러오지 못했습니다. API 서버 연결을 확인해 주세요.</div></td></tr>`;
+    els.body.innerHTML = `<tr><td colspan="10"><div class="error-banner">점검 현황을 불러오지 못했습니다. API 서버 연결을 확인해 주세요.</div></td></tr>`;
     return;
   }
 
@@ -63,11 +92,14 @@ function render(loadFailed) {
   `;
 
   if (entries.length === 0) {
-    els.body.innerHTML = `<tr><td colspan="9"><div class="empty">점검 데이터가 없습니다.</div></td></tr>`;
+    els.body.innerHTML = `<tr><td colspan="10"><div class="empty">점검 데이터가 없습니다.</div></td></tr>`;
     return;
   }
   if (list.length === 0) {
-    els.body.innerHTML = `<tr><td colspan="9"><div class="empty">해당 조건의 섭외자가 없습니다.</div></td></tr>`;
+    const msg = stoppedOnly
+      ? '일주일 전까지 등록된 중단 인원이 없습니다.'
+      : '해당 조건의 섭외자가 없습니다.';
+    els.body.innerHTML = `<tr><td colspan="10"><div class="empty">${msg}</div></td></tr>`;
     return;
   }
 
@@ -77,21 +109,22 @@ function render(loadFailed) {
     const c3 = tmMark(c.check3 ?? c.c3);
     return `
       <tr>
-        <td class="mono">${c.date}</td>
-        <td>${c.zone}</td>
-        <td>${c.name}</td>
-        <td>${c.tm === 'O' ? '<span class="check-tag done">완료</span>' : '<span class="check-tag pending">대기</span>'}</td>
-        <td class="tm-col">${c1}</td>
-        <td class="tm-col">${c2}</td>
-        <td class="tm-col">${c3}</td>
-        <td><span class="status-pill ${c.status === '진행' ? 'ongoing' : 'stopped'}">${c.status}</span></td>
-        <td>${c.note ?? ''}</td>
+        <td class="mono" data-label="섭외일자">${c.date}</td>
+        <td data-label="구역">${c.zone}</td>
+        <td data-label="이름">${c.name}</td>
+        <td data-label="TM 담당">${c.tmName ?? ''}</td>
+        <td data-label="TM"><span class="check-tag ${c.tm === 'O' ? 'done' : 'pending'}">${c.tm === 'O' ? 'TM' : '대기'}</span></td>
+        <td class="tm-col" data-label="1차 점검">${c1}</td>
+        <td class="tm-col" data-label="2차 점검">${c2}</td>
+        <td class="tm-col" data-label="3차 점검">${c3}</td>
+        <td data-label="상태"><span class="status-pill ${c.status === '진행' ? 'ongoing' : 'stopped'}">${c.status}</span></td>
+        <td data-label="비고">${c.note ?? ''}</td>
       </tr>`;
   }).join('');
 }
 
 async function load() {
-  els.body.innerHTML = `<tr><td colspan="9"><div class="loading">불러오는 중…</div></td></tr>`;
+  els.body.innerHTML = `<tr><td colspan="10"><div class="loading">불러오는 중…</div></td></tr>`;
   try {
     entries = await checkApi.list();
     render(false);
@@ -110,5 +143,11 @@ export async function initCheckTab() {
   cacheEls();
   els.searchBtn.addEventListener('click', applySearch);
   els.search.addEventListener('keydown', (e) => { if (e.key === 'Enter') applySearch(); });
+  els.stoppedToggle.addEventListener('click', () => {
+    stoppedOnly = !stoppedOnly;
+    els.stoppedToggle.classList.toggle('active', stoppedOnly);
+    els.stoppedToggle.setAttribute('aria-pressed', String(stoppedOnly));
+    render(false);
+  });
   await load();
 }

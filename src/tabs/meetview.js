@@ -5,6 +5,7 @@ const els = {};
 
 let allRows   = [];   // 현재 기간으로 불러온 만남 전체 (이름 필터 전)
 let nameQuery = '';
+let expandedCellKey = null;   // 펼쳐진 시간장소/목표/비고 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
 
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -38,6 +39,13 @@ function progLabel(m) {
   return { text: '선택', cls: '' };
 }
 
+/* 시간장소·목표·비고: 평소엔 한 줄 말줄임, 클릭하면 펼쳐짐(다른 곳 클릭 시 원복) — 일정 목록과 동일 */
+function expandableCell(m, field, labelText) {
+  const key = `${m.id}-${field}`;
+  const cls = expandedCellKey === key ? 'sched2-expandable expanded' : 'sched2-expandable';
+  return `<td class="${cls}" data-expand-key="${key}" data-label="${labelText}">${m[field] || ''}</td>`;
+}
+
 /* 일정 관리 표와 같은 컬럼 구성. 보기 전용이라 뱃지/텍스트로만 표시(수정 요소 없음) */
 function section(title, personCol, list) {
   if (!list.length) return '';
@@ -50,11 +58,11 @@ function section(title, personCol, list) {
       <td>${m.hireName || '-'}</td>
       <td>${meetPersonLabel(m)}</td>
       <td>${m.gyosa || '-'}</td>
-      <td class="sched2-col-goal">${m.meetCn || ''}</td>
-      <td class="sched2-col-goal">${m.goal || ''}</td>
+      ${expandableCell(m, 'meetCn', '시간장소')}
+      ${expandableCell(m, 'goal', '목표')}
       <td><span class="ms-view-badge ms-fb${m.feedbackYn === 'Y' ? ' on' : ''}">${m.feedbackYn === 'Y' ? '완료' : '대기'}</span></td>
       <td><span class="ms-view-badge${prog.cls ? ` ${prog.cls}` : ''}">${prog.text}</span></td>
-      <td class="sched2-col-goal">${m.cancelRs || ''}</td>
+      ${expandableCell(m, 'cancelRs', '비고')}
     </tr>`;
   }).join('');
   return `
@@ -100,6 +108,27 @@ function render(list) {
         </div>
       </div>`;
   }).join('');
+
+  bindExpand();
+}
+
+/* 셀 클릭 시 펼치기/접기 토글 (다른 곳 클릭하면 bindOutsideClose 가 접음) */
+function bindExpand() {
+  els.list.querySelectorAll('.sched2-expandable').forEach((td) => {
+    td.addEventListener('click', (ev) => {
+      ev.stopPropagation();   // 문서 클릭 리스너로 버블링 안 되게(같은 클릭에 바로 접히는 것 방지)
+      const key = td.dataset.expandKey;
+      expandedCellKey = expandedCellKey === key ? null : key;
+      refresh();
+    });
+  });
+}
+
+/* 펼쳐진 셀 밖을 클릭하면 원래(말줄임) 상태로 되돌림 */
+function bindOutsideClose() {
+  document.addEventListener('click', () => {
+    if (expandedCellKey !== null) { expandedCellKey = null; refresh(); }
+  });
 }
 
 function isoOffset(days) {
@@ -128,6 +157,7 @@ async function load() {
 }
 
 export async function reloadMeetSched() {
+  expandedCellKey = null;
   if (els.list) await load();
 }
 
@@ -137,6 +167,8 @@ export async function initMeetSchedTab() {
   els.from  = document.getElementById('mv-from');
   els.to    = document.getElementById('mv-to');
   els.name  = document.getElementById('mv-name');
+
+  bindOutsideClose();
 
   const d = defaultRange();
   els.from.value = d.from;

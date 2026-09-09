@@ -26,6 +26,11 @@ function setupTabs() {
         document.getElementById(`panel-${name}`).style.display =
           name === tab.dataset.tab ? 'block' : 'none';
       });
+
+      // 작은 화면에서는 선택한 탭이 가로 스크롤 밖으로 사라지지 않게 중앙으로 이동.
+      if (window.matchMedia('(max-width: 640px)').matches) {
+        tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
       TAB_RELOAD[tab.dataset.tab]?.();
     });
   });

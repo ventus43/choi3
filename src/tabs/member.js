@@ -79,12 +79,12 @@ function render() {
     if (editingId === m.NTT_ID) return editRow(m);
     return `
       <tr data-id="${m.NTT_ID}">
-        <td>${m.GU ?? '-'}</td>
-        <td><strong>${m.NAME ?? ''}</strong></td>
-        <td>${taBadge(m.TA)}</td>
-        <td>${badge(m.ISMISSION, 'mission')}</td>
-        <td><button class="btn-icon confirm" data-edit="${m.NTT_ID}" title="수정">✏️</button></td>
-        <td><button class="btn-icon danger"  data-del="${m.NTT_ID}"  title="삭제">✕</button></td>
+        <td data-label="구역">${m.GU ?? '-'}</td>
+        <td data-label="이름"><strong>${m.NAME ?? ''}</strong></td>
+        <td data-label="구분">${taBadge(m.TA)}</td>
+        <td data-label="사명">${badge(m.ISMISSION, 'mission')}</td>
+        <td data-label="수정"><button class="btn-icon confirm" data-edit="${m.NTT_ID}" title="수정">✏️</button></td>
+        <td data-label="삭제"><button class="btn-icon danger"  data-del="${m.NTT_ID}" title="삭제">✕</button></td>
       </tr>`;
   }).join('');
 
@@ -94,23 +94,23 @@ function render() {
 function editRow(m) {
   return `
     <tr data-id="${m.NTT_ID}" class="editing-row">
-      <td class="edit-cell"><input type="number" data-field="GU" value="${m.GU ?? ''}" min="1" style="width:60px"></td>
-      <td class="edit-cell"><input type="text"   data-field="NAME" value="${m.NAME ?? ''}" maxlength="20"></td>
-      <td class="edit-cell">
+      <td class="edit-cell" data-label="구역"><input type="number" data-field="GU" value="${m.GU ?? ''}" min="1" style="width:60px"></td>
+      <td class="edit-cell" data-label="이름"><input type="text"   data-field="NAME" value="${m.NAME ?? ''}" maxlength="20"></td>
+      <td class="edit-cell" data-label="구분">
         <select data-field="TA">
           <option value="0" ${taCode(m.TA) === 0 ? 'selected' : ''}>일반</option>
           <option value="1" ${taCode(m.TA) === 1 ? 'selected' : ''}>상담사</option>
           <option value="2" ${taCode(m.TA) === 2 ? 'selected' : ''}>교사</option>
         </select>
       </td>
-      <td class="edit-cell">
+      <td class="edit-cell" data-label="사명">
         <select data-field="ISMISSION">
           <option value="N" ${(m.ISMISSION || 'N') === 'N' ? 'selected' : ''}>없음</option>
           <option value="Y" ${m.ISMISSION === 'Y' ? 'selected' : ''}>사명</option>
         </select>
       </td>
-      <td><button class="btn-icon confirm" data-save-edit="${m.NTT_ID}" title="저장">✔</button></td>
-      <td><button class="btn-icon" data-cancel-edit title="취소">✕</button></td>
+      <td data-label="저장"><button class="btn-icon confirm" data-save-edit="${m.NTT_ID}" title="저장">✔</button></td>
+      <td data-label="취소"><button class="btn-icon" data-cancel-edit title="취소">✕</button></td>
     </tr>`;
 }
 

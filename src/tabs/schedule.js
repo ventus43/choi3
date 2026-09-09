@@ -8,6 +8,7 @@ let guFilter  = '';      // '' = 전체 구역
 let nameQuery = '';
 let pendingCancelId = null;   // 진행여부=취소 선택 후 비고에 사유 입력 중인 meeting id (동시에 하나만)
 let editingDateId = null;     // 날짜 수정 중인 meeting id
+let editingRowId = null;      // 시간장소·목표 수정 중인 meeting id (동시에 하나만)
 let expandedCellKey = null;   // 펼쳐진 시간장소/목표 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
 
 const els = {};
@@ -105,6 +106,20 @@ function noteCell(m) {
     </div>`;
 }
 
+/* 시간장소·목표 셀: 수정 중인 행이면 입력칸, 아니면 펼침 가능한 텍스트 셀 */
+function editableCell(m, field, labelText) {
+  if (editingRowId !== m.id) return expandableCell(m, field, labelText);
+  const cur = (m[field] || '').replace(/"/g, '&quot;');
+  return `<td data-label="${labelText}"><input type="text" class="sched2-inline-input" data-edit-${field.toLowerCase()}="${m.id}" value="${cur}" placeholder="${labelText}"></td>`;
+}
+
+/* 우측 끝 수정 열: 평소엔 "수정"(창출 목록과 동일한 btn-ghost btn-sm), 수정 중인 행만 "변경" 버튼 */
+function editCell(m) {
+  return editingRowId === m.id
+    ? `<td data-label="수정"><button type="button" class="sched2-apply-btn" data-edit-apply="${m.id}">변경</button></td>`
+    : `<td data-label="수정"><button type="button" class="btn btn-ghost btn-sm" data-edit-row="${m.id}">수정</button></td>`;
+}
+
 /* 첫만남: 만남 카운트가 없는 경우(1회차) / 단계만남: 카운트가 있는 경우(2회차 이상) 모두 */
 function section(title, personCol, list) {
   if (!list.length) return '';
@@ -115,11 +130,12 @@ function section(title, personCol, list) {
       <td data-label="이름">${m.hireName || '-'}</td>
       <td data-label="만남자">${meetPersonLabel(m)}</td>
       <td data-label="${personCol}">${m.gyosa || '-'}</td>
-      ${expandableCell(m, 'meetCn', '시간장소')}
-      ${expandableCell(m, 'goal', '목표')}
+      ${editableCell(m, 'meetCn', '시간장소')}
+      ${editableCell(m, 'goal', '목표')}
       <td data-label="피드백">${feedbackBtn(m)}</td>
       <td data-label="진행여부">${progressSelect(m)}</td>
       <td class="sched2-col-goal" data-label="비고">${noteCell(m)}</td>
+      ${editCell(m)}
     </tr>`).join('');
   return `
     <div class="sched2-section">
@@ -127,7 +143,7 @@ function section(title, personCol, list) {
       <table class="sched2-table">
         <thead><tr>
           <th>날짜</th><th>구역</th><th>이름</th><th>만남자</th><th>${personCol}</th>
-          <th>시간장소</th><th>목표</th><th>피드백</th><th>진행여부</th><th>비고</th>
+          <th>시간장소</th><th>목표</th><th>피드백</th><th>진행여부</th><th>비고</th><th>수정</th>
         </tr></thead>
         <tbody>${trs}</tbody>
       </table>
@@ -208,12 +224,34 @@ function bindEvents() {
       render();
     });
   });
+  els.list.querySelectorAll('[data-edit-row]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      editingRowId = Number(btn.dataset.editRow);
+      expandedCellKey = null;
+      render();
+      const first = els.list.querySelector(`[data-edit-meetcn="${editingRowId}"]`);
+      if (first) first.focus();
+    });
+  });
+  els.list.querySelectorAll('[data-edit-apply]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); applyRowEdit(Number(btn.dataset.editApply)); });
+  });
+  els.list.querySelectorAll('.sched2-inline-input').forEach((inp) => {
+    inp.addEventListener('click', (ev) => ev.stopPropagation());
+    inp.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); applyRowEdit(editingRowId); }
+    });
+  });
 }
 
-/* 펼쳐진 시간장소/목표 셀 밖을 클릭하면 원래(말줄임) 상태로 되돌림 */
+/* 펼쳐진 시간장소/목표 셀 · 수정 중인 행 밖을 클릭하면 원래 상태로 되돌림 */
 function bindOutsideClose() {
   document.addEventListener('click', () => {
-    if (expandedCellKey !== null) { expandedCellKey = null; render(); }
+    let dirty = false;
+    if (expandedCellKey !== null) { expandedCellKey = null; dirty = true; }
+    if (editingRowId !== null) { editingRowId = null; dirty = true; }
+    if (dirty) render();
   });
 }
 
@@ -287,6 +325,32 @@ async function applyDateChange(id, value) {
     row.meetDt = prev;
     render();
     alert(`날짜 저장 실패: ${err.message}`);
+  }
+}
+
+/* 시간장소·목표 인라인 수정 반영 후 저장 (실패 시 원복) */
+async function applyRowEdit(id) {
+  const row = rows.find((m) => m.id === id);
+  if (!row) return;
+
+  const meetInput = els.list.querySelector(`[data-edit-meetcn="${id}"]`);
+  const goalInput = els.list.querySelector(`[data-edit-goal="${id}"]`);
+  const patch = {
+    meetCn: meetInput ? meetInput.value.trim() : (row.meetCn || ''),
+    goal:   goalInput ? goalInput.value.trim() : (row.goal || ''),
+  };
+
+  const prev = { meetCn: row.meetCn, goal: row.goal };
+  Object.assign(row, patch);
+  editingRowId = null;
+  render();
+
+  try {
+    await meetingApi.update(id, patch);
+  } catch (err) {
+    Object.assign(row, prev);
+    render();
+    alert(`저장 실패: ${err.message}`);
   }
 }
 
@@ -368,6 +432,7 @@ async function handleSave() {
 export async function reloadSchedule() {
   pendingCancelId = null;
   editingDateId = null;
+  editingRowId = null;
   expandedCellKey = null;
   try {
     await loadSchedule();

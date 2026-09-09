@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS CHOIHIRE (
     IN_GU     INT,                       -- 인도자 구역 (사용구역)
     SEOM_GU   INT,                       -- 섬김이 구역
     GYO_GU    INT,                       -- 교사 구역
+    HIRESCORE VARCHAR(20),               -- 등록 시 두 구역 "인도,교사" (미입력=0) — 구역별 점수 집계용
     MEETCN    VARCHAR(50),               -- 시간·장소
     REG_DT    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- 등록일자 (입력 시각)
     PRIMARY KEY (NTT_ID)

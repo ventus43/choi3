@@ -180,6 +180,7 @@ def hire_to_outreach(row):
         'tm1':      row.get('1ST') or '',
         'tm2':      row.get('2ND') or '',
         'tm3':      row.get('3RD') or '',
+        'hireScore': row.get('HIRESCORE') or '',
         'prg':      row['PRG'] or '',
         'status':   row['STATUS'] or '',
         'ct':       _num(row.get('CT')),
@@ -202,17 +203,22 @@ def outreach_create():
     # 무조건 걸리게 됨 — 등록 시점에 필수로 막음(프론트 검증과 별개로 API 직접 호출도 방어).
     if not body.get('meetDate'):
         return jsonify({'message': '날짜는 필수 입력입니다.'}), 400
+    # 입력된 두 구역을 "인도구역,교사구역" (미입력=0) 형태로 기록 — 추후 구역별 점수 집계용
+    hirescore = f"{body.get('inGu') or 0},{body.get('gyoGu') or 0}"
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                'INSERT INTO CHOIHIRE (NAME, IN_GU, GYO_GU, REMARK, MEET_DATE, MEETCN)'
-                ' VALUES (%s,%s,%s,%s,%s,%s)',
+                'INSERT INTO CHOIHIRE (NAME, IN_GU, GYO_GU, INDO, GYOSA, REMARK, MEET_DATE, MEETCN, HIRESCORE)'
+                ' VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)',
                 (body.get('name'),
                  body.get('inGu') or None,
                  body.get('gyoGu') or None,
+                 body.get('indo') or None,
+                 body.get('gyosa') or None,
                  body.get('tmName') or None,
-                 body.get('meetDate'), body.get('meetCn'))
+                 body.get('meetDate'), body.get('meetCn'),
+                 hirescore)
             )
             new_id = cur.lastrowid
             # 섭외자 등록 시 1차 만남을 함께 생성 (섭외자ID + 날짜 + 시간·장소)
@@ -301,6 +307,7 @@ def hire_to_check(row):
         'date':   row['MEET_DATE'] or '',
         'zone':   str(row['IN_GU']) if row['IN_GU'] is not None else '',
         'name':   row['NAME'] or '',
+        'tmName': row.get('REMARK') or '',
         'tm':     'O' if row['PRG'] == 'O' else '',
         'check1': row.get('1ST') or '',
         'check2': row.get('2ND') or '',

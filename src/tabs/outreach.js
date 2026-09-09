@@ -25,6 +25,9 @@ function cacheEls() {
   els.error      = document.getElementById('outreach-error');
   els.name       = document.getElementById('of-name');
   els.tmName     = document.getElementById('of-tm-name');
+  els.jiin       = document.getElementById('of-jiin');
+  els.indo       = document.getElementById('of-indo');
+  els.gyosa      = document.getElementById('of-gyosa');
   els.inGuSeg    = document.getElementById('of-in-gu-seg');
   els.gyoGuSeg   = document.getElementById('of-gyo-gu-seg');
   els.meet       = document.getElementById('of-meet');
@@ -59,6 +62,12 @@ function buildZoneSeg(container, key) {
       });
     });
   });
+}
+
+/* 지인 체크: 첫 줄만 이름/티엠자 ↔ 이름/인도자/교사 로 전환 (2행부터는 그대로) */
+function applyJiinMode(on) {
+  els.form.querySelectorAll('[data-jiin-hide]').forEach((el) => { el.hidden = on; });
+  els.form.querySelectorAll('[data-jiin-show]').forEach((el) => { el.hidden = !on; });
 }
 
 function clearZoneSeg() {
@@ -422,6 +431,10 @@ async function handleRemove(id) {
 function resetForm() {
   els.name.value = '';
   els.tmName.value = '';
+  els.indo.value = '';
+  els.gyosa.value = '';
+  els.jiin.checked = false;
+  applyJiinMode(false);
   els.meet.value = '';
   els.meetDateInput.value = '';
   clearZoneSeg();
@@ -432,6 +445,10 @@ function resetForm() {
 function clearFormExceptInGu() {
   els.name.value = '';
   els.tmName.value = '';
+  els.indo.value = '';
+  els.gyosa.value = '';
+  els.jiin.checked = false;
+  applyJiinMode(false);
   els.meet.value = '';
   els.meetDateInput.value = '';
   formZone.gyoGu = '';
@@ -456,10 +473,16 @@ async function handleSave() {
     name,
     inGu,
     gyoGu:    formZone.gyoGu || null,
-    tmName:   els.tmName.value.trim() || null,
     meetDate,
     meetCn:   els.meet.value.trim() || null,
   };
+  if (els.jiin.checked) {
+    // 지인: 첫 줄이 이름/인도자/교사 → name/indo/gyosa 로 저장
+    input.indo  = els.indo.value.trim() || null;
+    input.gyosa = els.gyosa.value.trim() || null;
+  } else {
+    input.tmName = els.tmName.value.trim() || null;
+  }
 
   els.saveBtn.disabled = true;
   try {
@@ -483,6 +506,8 @@ export async function initOutreachTab() {
 
   buildZoneSeg(els.inGuSeg, 'inGu');
   buildZoneSeg(els.gyoGuSeg, 'gyoGu');
+
+  els.jiin.addEventListener('change', () => applyJiinMode(els.jiin.checked));
 
   els.toggleBtn.addEventListener('click', () => {
     const opening = !els.form.classList.contains('open');
