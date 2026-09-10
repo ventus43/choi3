@@ -1,5 +1,61 @@
-import { meetingApi, outreachApi } from '../api.js';
-import { renderZoneSelect, zoneMatch, nameMatch } from '../utils.js';
+import { meetingApi, outreachApi } from '../core/api.js';
+import { renderZoneSelect, zoneMatch } from '../core/zone.js';
+import { nameMatch } from '../core/format.js';
+import { optimistic } from '../core/dom.js';
+import {
+  bindOutsideClose, expandableCell, meetPersonLabel, renderMeetingDays,
+} from './_meetings-table.js';
+
+export const TEMPLATE = `
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-head-title">
+          <h2>일정 목록</h2>
+          <p>날짜별 만남 일정 — 첫만남 / 단계만남</p>
+        </div>
+        <select class="filter-select panel-head-zone" id="schedule-gu-filter"></select>
+      </div>
+      <div class="panel-head-right">
+        <div class="panel-head-tools">
+          <span class="date-range">
+            <input type="date" id="sch-from"> ~ <input type="date" id="sch-to">
+            <input type="text" class="filter-search" id="schedule-search" placeholder="이름" autocomplete="off">
+            <button type="button" class="btn btn-ghost btn-sm" id="schedule-search-btn">검색</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="schedule-reset-btn">초기화</button>
+          </span>
+        </div>
+        <button class="btn btn-primary" id="toggle-schedule-form"><span class="btn-plus">+</span> 만남 추가</button>
+      </div>
+    </div>
+
+    <div class="add-form" id="schedule-form">
+      <div class="form-grid">
+        <div class="span-2">
+          <label class="req">대상자</label>
+          <select id="sf-person"><option value="">불러오는 중…</option></select>
+        </div>
+        <div>
+          <label class="req">날짜</label>
+          <input type="date" id="sf-date">
+        </div>
+        <div>
+          <label>시간 · 장소</label>
+          <input type="text" id="sf-place" placeholder="예: 15:00 전대 인근 카페">
+        </div>
+        <div class="span-2">
+          <label>목표</label>
+          <input type="text" id="sf-goal" placeholder="예: 관계형성">
+        </div>
+      </div>
+      <div class="form-error" id="schedule-error">대상자와 날짜는 필수 입력입니다.</div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="cancel-schedule">취소</button>
+        <button class="btn btn-primary" id="save-schedule">저장</button>
+      </div>
+    </div>
+
+    <div id="schedule-list" class="panel-list"></div>
+`;
 
 let rows = [];
 let people = [];        // PRG='중단' 아닌 섭외자 (대상자 선택용)
@@ -12,8 +68,6 @@ let editingRowId = null;      // 시간장소·목표 수정 중인 meeting id (
 let expandedCellKey = null;   // 펼쳐진 시간장소/목표 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
 
 const els = {};
-
-const WD = ['일', '월', '화', '수', '목', '금', '토'];
 
 function cacheEls() {
   els.list      = document.getElementById('schedule-list');
@@ -37,18 +91,6 @@ function visibleRows() {
   return rows.filter((m) => zoneMatch(m.zone, guFilter) && nameMatch(m.hireName, nameQuery));
 }
 
-function dayLabel(iso) {
-  if (!iso) return { md: '날짜 미정', dow: '' };
-  const [y, m, d] = iso.split('-').map(Number);
-  return { md: `${m}/${d}`, dow: WD[new Date(y, m - 1, d).getDay()] };
-}
-
-function todayIso() {
-  const n = new Date();
-  const p = (v) => String(v).padStart(2, '0');
-  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-}
-
 /* 단계만남(2회차 이상)은 날짜 옆에 만남 횟수(회차) 표기: 날짜(2) */
 function dateCell(m) {
   if (editingDateId === m.id) {
@@ -57,19 +99,6 @@ function dateCell(m) {
   const label  = m.meetDt || '날짜 입력';
   const suffix = m.seq > 1 ? `(${m.seq})` : '';
   return `<button type="button" class="date-edit-btn" data-date-edit="${m.id}">${label}${suffix}</button>`;
-}
-
-/* 만남자: 인도자/섬김이 (섬김이 없으면 "/섬김이" 생략) */
-function meetPersonLabel(m) {
-  const parts = [m.indo, m.seomgim].filter(Boolean);
-  return parts.length ? parts.join('/') : '-';
-}
-
-/* 시간장소/목표: 평소엔 한 줄 말줄임, 클릭하면 펼쳐지고(다른 곳 클릭하면 원복) 크기는 그대로 유지 */
-function expandableCell(m, field, labelText) {
-  const key = `${m.id}-${field}`;
-  const cls = expandedCellKey === key ? 'sched2-expandable expanded' : 'sched2-expandable';
-  return `<td class="${cls}" data-expand-key="${key}" data-label="${labelText}">${m[field] || ''}</td>`;
 }
 
 function feedbackBtn(m) {
@@ -108,7 +137,7 @@ function noteCell(m) {
 
 /* 시간장소·목표 셀: 수정 중인 행이면 입력칸, 아니면 펼침 가능한 텍스트 셀 */
 function editableCell(m, field, labelText) {
-  if (editingRowId !== m.id) return expandableCell(m, field, labelText);
+  if (editingRowId !== m.id) return expandableCell(m, field, labelText, expandedCellKey);
   const cur = (m[field] || '').replace(/"/g, '&quot;');
   return `<td data-label="${labelText}"><input type="text" class="sched2-inline-input" data-edit-${field.toLowerCase()}="${m.id}" value="${cur}" placeholder="${labelText}"></td>`;
 }
@@ -120,10 +149,12 @@ function editCell(m) {
     : `<td data-label="수정"><button type="button" class="btn btn-ghost btn-sm" data-edit-row="${m.id}">수정</button></td>`;
 }
 
-/* 첫만남: 만남 카운트가 없는 경우(1회차) / 단계만남: 카운트가 있는 경우(2회차 이상) 모두 */
-function section(title, personCol, list) {
-  if (!list.length) return '';
-  const trs = list.map((m) => `
+/* 첫만남/단계만남 표 — 골격은 _meetings-table.js, 셀은 여기(수정 가능). */
+const columns = (personCol) =>
+  ['날짜', '구역', '이름', '만남자', personCol, '시간장소', '목표', '피드백', '진행여부', '비고', '수정'];
+
+function renderRow(m, personCol) {
+  return `
     <tr data-mid="${m.id}">
       <td data-label="날짜">${dateCell(m)}</td>
       <td data-label="구역">${m.zone || '-'}</td>
@@ -136,18 +167,7 @@ function section(title, personCol, list) {
       <td data-label="진행여부">${progressSelect(m)}</td>
       <td class="sched2-col-goal" data-label="비고">${noteCell(m)}</td>
       ${editCell(m)}
-    </tr>`).join('');
-  return `
-    <div class="sched2-section">
-      <div class="sched2-section-title">${title}</div>
-      <table class="sched2-table">
-        <thead><tr>
-          <th>날짜</th><th>구역</th><th>이름</th><th>만남자</th><th>${personCol}</th>
-          <th>시간장소</th><th>목표</th><th>피드백</th><th>진행여부</th><th>비고</th><th>수정</th>
-        </tr></thead>
-        <tbody>${trs}</tbody>
-      </table>
-    </div>`;
+    </tr>`;
 }
 
 function render() {
@@ -172,27 +192,7 @@ function render() {
     return;
   }
 
-  const tIso = todayIso();
-  const groups = new Map();
-  list.forEach((m) => {
-    if (!groups.has(m.meetDt)) groups.set(m.meetDt, []);
-    groups.get(m.meetDt).push(m);
-  });
-
-  els.list.innerHTML = [...groups.keys()].sort().map((iso) => {
-    const list  = groups.get(iso);
-    const first = list.filter((m) => m.seq === 1);   // 첫만남: 만남 카운트 없음
-    const step  = list.filter((m) => m.seq > 1);     // 단계만남: 만남 카운트 있음(2회차~)
-    const { md, dow } = dayLabel(iso);
-    return `
-      <div class="sched2-daygroup">
-        <div class="sched2-datecell${iso === tIso ? ' today' : ''}">${md}${dow ? `<span class="dow">(${dow})</span>` : ''}</div>
-        <div class="sched2-body">
-          ${section('첫만남', '상담사', first)}
-          ${section('단계만남', '교사', step)}
-        </div>
-      </div>`;
-  }).join('');
+  els.list.innerHTML = renderMeetingDays(list, { columns, renderRow });
 
   bindEvents();
 }
@@ -246,13 +246,11 @@ function bindEvents() {
 }
 
 /* 펼쳐진 시간장소/목표 셀 · 수정 중인 행 밖을 클릭하면 원래 상태로 되돌림 */
-function bindOutsideClose() {
-  document.addEventListener('click', () => {
-    let dirty = false;
-    if (expandedCellKey !== null) { expandedCellKey = null; dirty = true; }
-    if (editingRowId !== null) { editingRowId = null; dirty = true; }
-    if (dirty) render();
-  });
+function closeOnOutsideClick() {
+  let dirty = false;
+  if (expandedCellKey !== null) { expandedCellKey = null; dirty = true; }
+  if (editingRowId !== null) { editingRowId = null; dirty = true; }
+  if (dirty) render();
 }
 
 async function toggleField(id, field) {
@@ -260,16 +258,14 @@ async function toggleField(id, field) {
   if (!row) return;
 
   const prev = row[field];
-  row[field] = prev === 'Y' ? 'N' : 'Y';
-  render();
-
-  try {
-    await meetingApi.update(id, { [field]: row[field] });
-  } catch (err) {
-    row[field] = prev;
-    render();
-    alert(`저장 실패: ${err.message}`);
-  }
+  const next = prev === 'Y' ? 'N' : 'Y';
+  await optimistic({
+    apply: () => { row[field] = next; },
+    revert: () => { row[field] = prev; },
+    render,
+    call: () => meetingApi.update(id, { [field]: next }),
+    onError: (msg) => alert(`저장 실패: ${msg}`),
+  });
 }
 
 function handleProgChange(id, value) {
@@ -298,16 +294,13 @@ async function applyProgress(id, patch) {
   if (!row) return;
 
   const prev = { meetYn: row.meetYn, cancelRs: row.cancelRs };
-  Object.assign(row, patch);
-  render();
-
-  try {
-    await meetingApi.update(id, patch);
-  } catch (err) {
-    Object.assign(row, prev);
-    render();
-    alert(`저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => Object.assign(row, patch),
+    revert: () => Object.assign(row, prev),
+    render,
+    call: () => meetingApi.update(id, patch),
+    onError: (msg) => alert(`저장 실패: ${msg}`),
+  });
 }
 
 async function applyDateChange(id, value) {
@@ -315,17 +308,14 @@ async function applyDateChange(id, value) {
   if (!row) return;
 
   const prev = row.meetDt;
-  row.meetDt = value;
   editingDateId = null;
-  render();
-
-  try {
-    await meetingApi.update(id, { meetDt: value });
-  } catch (err) {
-    row.meetDt = prev;
-    render();
-    alert(`날짜 저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { row.meetDt = value; },
+    revert: () => { row.meetDt = prev; },
+    render,
+    call: () => meetingApi.update(id, { meetDt: value }),
+    onError: (msg) => alert(`날짜 저장 실패: ${msg}`),
+  });
 }
 
 /* 시간장소·목표 인라인 수정 반영 후 저장 (실패 시 원복) */
@@ -341,17 +331,14 @@ async function applyRowEdit(id) {
   };
 
   const prev = { meetCn: row.meetCn, goal: row.goal };
-  Object.assign(row, patch);
   editingRowId = null;
-  render();
-
-  try {
-    await meetingApi.update(id, patch);
-  } catch (err) {
-    Object.assign(row, prev);
-    render();
-    alert(`저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => Object.assign(row, patch),
+    revert: () => Object.assign(row, prev),
+    render,
+    call: () => meetingApi.update(id, patch),
+    onError: (msg) => alert(`저장 실패: ${msg}`),
+  });
 }
 
 /* ── 만남 추가 폼 ── */
@@ -446,7 +433,7 @@ export async function reloadSchedule() {
 
 export async function initScheduleTab() {
   cacheEls();
-  bindOutsideClose();
+  bindOutsideClose(closeOnOutsideClick);
 
   els.toggleBtn.addEventListener('click', () => {
     const opening = !els.form.classList.contains('open');

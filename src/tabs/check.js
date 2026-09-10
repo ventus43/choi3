@@ -1,5 +1,38 @@
-import { checkApi } from '../api.js';
-import { renderZoneSeg, nameMatch } from '../utils.js';
+import { checkApi } from '../core/api.js';
+import { renderZoneSeg } from '../core/zone.js';
+import { nameMatch } from '../core/format.js';
+
+export const TEMPLATE = `
+    <div class="panel-head">
+      <div>
+        <h2>TM 현황</h2>
+        <p>섭외자별 TM 및 1·2·3차 점검 진행 상태입니다.</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="check-stopped-toggle" aria-pressed="false"
+        title="만남 진행 여부 확정이 있는 인원은 제외하고, 일주일 전까지 등록된 중단 인원만 표시">중단인원확인</button>
+    </div>
+
+    <div class="filter-bar" id="check-filter-bar">
+      <div class="seg-group" id="check-seg-gu"></div>
+      <span class="filter-search-group">
+        <input type="text" class="filter-search" id="check-search" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="check-search-btn">검색</button>
+      </span>
+      <span class="filter-count" id="check-filtered-count"></span>
+    </div>
+
+    <div class="stat-row" id="check-stats"></div>
+
+    <table>
+      <thead>
+      <tr>
+        <th>섭외일자</th><th>구역</th><th>이름</th><th>티엠자</th><th>TM</th>
+        <th>1차 점검</th><th>2차 점검</th><th>3차 점검</th><th>상태</th><th>비고</th>
+      </tr>
+      </thead>
+      <tbody id="check-body"></tbody>
+    </table>
+`;
 
 let entries = [];
 let guFilter  = '';   // '' = 전체 구역

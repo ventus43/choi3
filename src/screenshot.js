@@ -1,6 +1,6 @@
 import * as htmlToImage from 'html-to-image';
-import { BASE_URL } from './api.js';
-import { getAuthToken } from './auth.js';
+import { BASE_URL } from './core/api.js';
+import { getAuthToken } from './core/auth.js';
 import { reloadZoneStat } from './tabs/zonestat.js';
 import { reloadMeetSched } from './tabs/meetview.js';
 import { reloadCheck } from './tabs/check.js';

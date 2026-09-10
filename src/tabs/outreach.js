@@ -1,5 +1,81 @@
-import { outreachApi, memberApi } from '../api.js';
-import { renderZoneSelect, zoneMatch, nameMatch, taCode, TA_LABEL } from '../utils.js';
+import { outreachApi, memberApi } from '../core/api.js';
+import { renderZoneSelect, zoneMatch } from '../core/zone.js';
+import { nameMatch, taCode, TA_LABEL } from '../core/format.js';
+import { optimistic } from '../core/dom.js';
+
+export const TEMPLATE = `
+    <div class="panel-head">
+      <div class="panel-head-left">
+        <div class="panel-head-title">
+          <h2>창출 목록</h2>
+        </div>
+        <select class="filter-select panel-head-zone" id="outreach-gu-filter"></select>
+      </div>
+      <div class="panel-head-right">
+        <div class="panel-head-tools">
+          <div class="seg-group" id="outreach-prg-filter">
+            <button type="button" class="seg-btn on" data-prg-filter="all">전체</button>
+            <button type="button" class="seg-btn" data-prg-filter="none">미정</button>
+            <button type="button" class="seg-btn" data-prg-filter="going">진행</button>
+            <button type="button" class="seg-btn" data-prg-filter="cancel">중단</button>
+          </div>
+          <input type="text" class="filter-search" id="outreach-search" placeholder="이름" autocomplete="off">
+          <button type="button" class="btn btn-ghost btn-sm" id="outreach-search-btn">검색</button>
+        </div>
+        <button class="btn btn-primary" id="toggle-outreach-form"><span class="btn-plus">+</span> 섭외자 추가</button>
+      </div>
+    </div>
+
+    <div class="add-form" id="outreach-form">
+      <div class="form-grid cols-2">
+        <div class="span-2 of-first-row">
+          <div class="of-ff">
+            <label class="req">이름</label>
+            <input type="text" id="of-name" placeholder="예: 최미슬">
+          </div>
+          <div class="of-ff" data-jiin-hide>
+            <label>티엠자</label>
+            <input type="text" id="of-tm-name" placeholder="예: 김상담">
+          </div>
+          <div class="of-ff" data-jiin-show hidden>
+            <label>인도자</label>
+            <input type="text" id="of-indo" placeholder="예: 김인도">
+          </div>
+          <div class="of-ff" data-jiin-show hidden>
+            <label>교사</label>
+            <input type="text" id="of-gyosa" placeholder="예: 박교사">
+          </div>
+        </div>
+        <div class="span-2 of-zone-row">
+          <div class="of-ff of-ff-auto">
+            <label class="req">구역1</label>
+            <div class="seg-group" id="of-in-gu-seg"></div>
+          </div>
+          <label class="of-jiin"><input type="checkbox" id="of-jiin"> 지인</label>
+          <div class="of-ff of-ff-auto">
+            <label>구역2</label>
+            <div class="seg-group" id="of-gyo-gu-seg"></div>
+          </div>
+        </div>
+        <div>
+          <label class="req">날짜</label>
+          <input type="date" id="of-meet-date">
+        </div>
+        <div>
+          <label>시간 · 장소</label>
+          <input type="text" id="of-meet" placeholder="예: 15:00 상무역 스타벅스">
+        </div>
+      </div>
+      <div class="form-error" id="outreach-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="cancel-outreach">취소</button>
+        <button class="btn btn-primary" id="save-outreach">저장</button>
+        <button class="btn btn-ghost" id="reset-outreach" title="인도 구역을 제외한 모든 입력값을 비웁니다">초기화</button>
+      </div>
+    </div>
+
+    <div id="outreach-groups" class="panel-list"></div>
+`;
 
 let entries = [];
 let teachers = [];   // 구역관리(CHOIMEMBER) 중 상담사(TA=1)·교사(TA=2) — 교사 인원 선택 목록
@@ -323,17 +399,13 @@ async function handlePersonSave(id) {
   form.querySelectorAll('[data-pf]').forEach((el) => { patch[el.dataset.pf] = el.value.trim(); });
 
   const prev = { ...entry };
-  Object.assign(entry, patch);
-  entry.zone = computeZone(entry);
-  render();
-
-  try {
-    await outreachApi.update(id, patch);
-  } catch (err) {
-    Object.assign(entry, prev);
-    render();
-    alert(`인원 설정 저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { Object.assign(entry, patch); entry.zone = computeZone(entry); },
+    revert: () => Object.assign(entry, prev),
+    render,
+    call: () => outreachApi.update(id, patch),
+    onError: (msg) => alert(`인원 설정 저장 실패: ${msg}`),
+  });
 }
 
 async function handleStatusChange(id, value) {
@@ -341,16 +413,14 @@ async function handleStatusChange(id, value) {
   if (!entry) return;
 
   const prev = entry.status;
-  entry.status = value;
-
-  try {
-    await outreachApi.update(id, { status: value });
-    render();   // S5/S6 전환 시 센터(CT) 입력창이 즉시 나타나도록
-  } catch (err) {
-    entry.status = prev;
-    render();
-    alert(`상태(S) 저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { entry.status = value; },
+    revert: () => { entry.status = prev; },
+    render,   // S5/S6 전환 시 센터(CT) 입력창이 나타나도록: 성공 후에만 다시 그림
+    call: () => outreachApi.update(id, { status: value }),
+    onError: (msg) => alert(`상태(S) 저장 실패: ${msg}`),
+    eager: false,
+  });
 }
 
 async function handleCtSave(id) {
@@ -365,16 +435,13 @@ async function handleCtSave(id) {
   }
 
   const prev = entry.ct;
-  entry.ct = raw;
-  render();
-
-  try {
-    await outreachApi.update(id, { ct: raw });
-  } catch (err) {
-    entry.ct = prev;
-    render();
-    alert(`센터 저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { entry.ct = raw; },
+    revert: () => { entry.ct = prev; },
+    render,
+    call: () => outreachApi.update(id, { ct: raw }),
+    onError: (msg) => alert(`센터 저장 실패: ${msg}`),
+  });
 }
 
 async function handlePrgChange(id, value) {
@@ -402,30 +469,25 @@ async function handleTmToggle(id, field) {
 
   const prev = entry[field];
   const next = prev === 'Y' ? 'N' : 'Y';
-  entry[field] = next;
-  render();
-
-  try {
-    await outreachApi.update(id, { [field]: next });
-  } catch (err) {
-    entry[field] = prev;
-    render();
-    alert(`${field.replace('tm', '')}차 점검 저장 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { entry[field] = next; },
+    revert: () => { entry[field] = prev; },
+    render,
+    call: () => outreachApi.update(id, { [field]: next }),
+    onError: (msg) => alert(`${field.replace('tm', '')}차 점검 저장 실패: ${msg}`),
+  });
 }
 
 async function handleRemove(id) {
   if (!confirm('이 섭외자를 목록에서 제외하시겠습니까?')) return;
   const prev = entries;
-  entries = entries.filter((e) => e.id !== id);
-  render();
-  try {
-    await outreachApi.remove(id);
-  } catch (err) {
-    entries = prev;
-    render();
-    alert(`삭제 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { entries = entries.filter((e) => e.id !== id); },
+    revert: () => { entries = prev; },
+    render,
+    call: () => outreachApi.remove(id),
+    onError: (msg) => alert(`삭제 실패: ${msg}`),
+  });
 }
 
 function resetForm() {

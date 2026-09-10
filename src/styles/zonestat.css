@@ -1,0 +1,107 @@
+/* 구역 현황 매트릭스 (zv-*) */
+/* ---------- 구역 현황 (구역 × 상태 매트릭스, 상태별 명단/수치 서브컬럼) ---------- */
+.zv-wrap{ overflow-x:auto; }
+.zv-table{ border-collapse: collapse; font-size: 12px; table-layout: auto; }
+.zv-table th, .zv-table td{
+  border: 1px solid var(--border); padding: 6px 8px; text-align:left; vertical-align:top;
+}
+.zv-table thead th{
+  background: var(--surface-2); font-size: 11px; color: var(--ink-soft);
+  text-align:center; white-space:nowrap;
+}
+/* .zv-table th/td 기본 규칙(text-align:left)이 명시도(element+class)가 더 높아서
+   아래 단일 클래스들의 text-align:center를 덮어쓰던 문제 — .zv-table으로 명시도를 맞춰서 고정 */
+.zv-table .zv-rowhead{
+  background: var(--surface-2); font-size:11.5px; font-weight:800; color: var(--primary);
+  text-align:center; vertical-align:middle; white-space:nowrap;
+}
+/* 글자가 잘리지 않고 다 보이도록 — 말줄임 없이 필요하면 줄바꿈 */
+.zv-entry{
+  font-size: 11.5px; line-height:1.5; white-space:normal; overflow:visible;
+  word-break:keep-all; overflow-wrap:break-word;
+}
+.zv-table .zv-score-col{
+  text-align:center; color: var(--ink-soft); font-family:'JetBrains Mono', monospace;
+}
+.zv-empty{ color: var(--border); font-size:12px; }
+.zv-table .zv-total{
+  background: var(--accent-dim); color: var(--accent); font-weight:800; text-align:center;
+  vertical-align:middle; font-family:'JetBrains Mono', monospace; font-size:12.5px;
+}
+.zv-table tfoot .zv-rowhead{ background: var(--primary-dim); color: var(--primary); }
+
+/* ── 인원 설정 박스 (인도자/섬김이/교사 + 각 구역) ── */
+.person-form {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--primary-light);
+  border-radius: 8px;
+  background: var(--primary-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pf-row { display: flex; gap: 8px; align-items: center; }
+.pf-role {
+  width: 42px; flex: none;
+  font-size: 11px; font-weight: 700; color: var(--ink-soft);
+}
+.pf-gu {
+  width: 64px; flex: none;
+  font-family: inherit; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px;
+  background: var(--surface); color: var(--ink);
+}
+.pf-name {
+  flex: 1; min-width: 80px;
+  font-family: inherit; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px;
+  background: var(--surface); color: var(--ink);
+}
+.pf-gu:focus, .pf-name:focus { outline: none; border-color: var(--primary); }
+.pf-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── 세그먼트 버튼(멤버 구역 필터) ── */
+.seg-group { display: inline-flex; flex-wrap: wrap; }
+.seg-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-right-width: 0;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.seg-btn:first-child { border-radius: 7px 0 0 7px; }
+.seg-btn:last-child  { border-radius: 0 7px 7px 0; border-right-width: 1px; }
+.seg-btn:hover { background: var(--surface-2); color: var(--ink); }
+.seg-btn.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ── 일정 카드 (명단|목표 / 날짜|시간·장소) ── */
+.sched-card2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.sched-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  row-gap: 4px;
+}
+.sched-grid > div { padding: 2px 0; }
+.sc-name { font-weight: 800; font-size: 14px; padding-right: 16px; }
+.sc-goal { font-size: 13px; color: var(--ink); border-left: 1px solid var(--border); padding-left: 16px; }
+.sc-date {
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+  font-weight: 700; color: var(--primary); padding-right: 16px;
+}
+.sc-place { font-size: 12.5px; color: var(--ink-soft); border-left: 1px solid var(--border); padding-left: 16px; }
+.sc-dim { color: var(--ink-soft); opacity: .55; }

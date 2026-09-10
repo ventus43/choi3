@@ -1,5 +1,67 @@
-import { memberApi } from '../api.js';
-import { taCode } from '../utils.js';
+import { memberApi } from '../core/api.js';
+import { taCode } from '../core/format.js';
+import { optimistic } from '../core/dom.js';
+
+export const TEMPLATE = `
+    <div class="panel-head">
+      <div>
+        <h2>구역 관리</h2>
+        <p>구역원 정보를 관리합니다.</p>
+      </div>
+      <button class="btn btn-primary" id="toggle-member-form"><span class="btn-plus">+</span> 멤버 추가</button>
+    </div>
+
+    <div class="add-form" id="member-form">
+      <div class="form-grid">
+        <div>
+          <label class="req">구역</label>
+          <input type="number" id="mf-gu" placeholder="예: 4" min="1">
+        </div>
+        <div class="span-2">
+          <label class="req">이름</label>
+          <input type="text" id="mf-name" placeholder="이름 입력" maxlength="20">
+        </div>
+        <div>
+          <label>구분</label>
+          <select id="mf-ta">
+            <option value="0">일반</option>
+            <option value="1">상담사</option>
+            <option value="2">교사</option>
+          </select>
+        </div>
+        <div>
+          <label>사명 여부</label>
+          <select id="mf-mission">
+            <option value="">없음</option>
+            <option value="사명">사명</option>
+            <option value="전도">전도</option>
+            <option value="구역장">구역장</option>
+            <option value="교관">교관</option>
+            <option value="부장">부장</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-error" id="member-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="cancel-member">취소</button>
+        <button class="btn btn-primary" id="save-member">저장</button>
+      </div>
+    </div>
+
+    <div class="filter-bar" id="member-filter-bar">
+      <div class="seg-group" id="member-seg-gu"></div>
+      <span class="filter-count" id="member-filtered-count"></span>
+    </div>
+
+    <table id="member-table">
+      <thead>
+        <tr>
+          <th>구역</th><th>이름</th><th>구분</th><th>사명</th><th>수정</th><th>삭제</th>
+        </tr>
+      </thead>
+      <tbody id="member-body"></tbody>
+    </table>
+`;
 
 let entries   = [];
 let editingId = null;   // 현재 인라인 수정 중인 NTT_ID
@@ -136,15 +198,13 @@ function bindRowEvents() {
 async function handleRemove(id) {
   if (!confirm(`ID ${id} 멤버를 삭제하시겠습니까?`)) return;
   const prev = entries;
-  entries = entries.filter((m) => m.NTT_ID !== id);
-  render();
-  try {
-    await memberApi.remove(id);
-  } catch (err) {
-    entries = prev;
-    render();
-    alert(`삭제 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { entries = entries.filter((m) => m.NTT_ID !== id); },
+    revert: () => { entries = prev; },
+    render,
+    call: () => memberApi.remove(id),
+    onError: (msg) => alert(`삭제 실패: ${msg}`),
+  });
 }
 
 async function handleSaveEdit(id) {
@@ -162,18 +222,13 @@ async function handleSaveEdit(id) {
   if (!entry) return;
 
   const prev = { ...entry };
-  Object.assign(entry, patch);
-  editingId = null;
-  render();
-
-  try {
-    await memberApi.update(id, patch);
-  } catch (err) {
-    Object.assign(entry, prev);
-    editingId = id;
-    render();
-    alert(`수정 실패: ${err.message}`);
-  }
+  await optimistic({
+    apply: () => { Object.assign(entry, patch); editingId = null; },
+    revert: () => { Object.assign(entry, prev); editingId = id; },
+    render,
+    call: () => memberApi.update(id, patch),
+    onError: (msg) => alert(`수정 실패: ${msg}`),
+  });
 }
 
 /* ── 추가 폼 ── */

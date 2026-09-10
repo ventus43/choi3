@@ -1,0 +1,101 @@
+/* 일정 목록: schedule + schedule v2 표 */
+/* ---------- schedule tab ---------- */
+.sched-list{ display:flex; flex-direction:column; gap:10px; }
+.sched-card{
+  display:grid; grid-template-columns: 96px 1fr auto; gap: 14px; align-items:center;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px;
+}
+.sched-date{
+  text-align:center; background: var(--surface-2); border-radius: 8px; padding: 8px 4px;
+}
+.sched-date .d{ font-family:'JetBrains Mono',monospace; font-weight:800; font-size:16px; color: var(--primary); }
+.sched-date .m{ font-size: 10.5px; color: var(--ink-soft); margin-top:2px; }
+.sched-main .title{ font-weight:700; font-size:14px; }
+.sched-main .meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; display:flex; gap:12px; flex-wrap:wrap;}
+.sched-main .meta span::before{ content:"·"; margin-right:6px; color: var(--border); }
+.sched-main .meta span:first-child::before{ content:""; }
+
+/* ---------- schedule tab v2 (날짜별 첫만남/단계만남 표) ---------- */
+.sched2-daygroup{
+  display:grid; grid-template-columns: 60px 1fr;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow:hidden; margin-bottom: 12px;
+}
+.sched2-datecell{
+  background: var(--primary-dim); color: var(--primary);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  font-weight:700; font-size:12.5px; text-align:center; line-height:1.4;
+  padding: 8px 4px; border-right: 1px solid var(--border);
+}
+.sched2-datecell .dow{ font-size:10.5px; font-weight:600; opacity:.75; }
+.sched2-datecell.today{ background: var(--accent-dim); color: var(--accent); }
+.sched2-body{ padding: 10px 12px; display:flex; flex-direction:column; gap: 12px; }
+.sched2-section-title{
+  font-size: 11px; font-weight:700; color: var(--ink-soft); margin-bottom: 4px;
+}
+/* 첫만남/단계만남 두 표가 같은 컬럼 폭을 쓰도록 고정폭(table-layout:fixed) — 표마다 내용이 달라도 간격이 어긋나지 않음 */
+.sched2-section{ overflow-x:auto; }
+.sched2-table{ width:100%; min-width: 760px; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+.sched2-table th, .sched2-table td{
+  padding: 4px 6px; text-align:left; border-bottom: 1px solid var(--border);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sched2-table th:first-child, .sched2-table td:first-child{ padding-right: 2px; }
+.sched2-table th:nth-child(2), .sched2-table td:nth-child(2){ padding-left: 2px; }
+.sched2-table th{ font-size: 11px; color: var(--ink-soft); font-weight:700; background: var(--surface-2); }
+.sched2-table tbody tr:last-child td{ border-bottom:none; }
+.sched2-col-goal{ white-space:normal; overflow:visible; text-overflow:clip; color: var(--ink-soft); }
+/* 날짜·구역·이름·만남자·상담사(교사)·시간장소·목표·피드백·진행여부·비고 */
+.sched2-table th:nth-child(1),  .sched2-table td:nth-child(1) { width:118px; }
+.sched2-table th:nth-child(2),  .sched2-table td:nth-child(2) { width: 46px; }
+.sched2-table th:nth-child(3),  .sched2-table td:nth-child(3) { width: 60px; }
+.sched2-table th:nth-child(4),  .sched2-table td:nth-child(4) { width: 80px; padding-right: 4px; }
+.sched2-table th:nth-child(5),  .sched2-table td:nth-child(5) { width: 56px; padding-left: 4px; }
+.sched2-table th:nth-child(6),  .sched2-table td:nth-child(6) { width:150px; }
+.sched2-table th:nth-child(7),  .sched2-table td:nth-child(7) { width:140px; }
+.sched2-table th:nth-child(8),  .sched2-table td:nth-child(8) { width: 52px; }
+.sched2-table th:nth-child(9),  .sched2-table td:nth-child(9) { width: 62px; }
+.sched2-table th:nth-child(10), .sched2-table td:nth-child(10){ width:auto; }
+/* 시간장소·목표: 평소엔 한 줄 말줄임, 클릭하면 아래로 펼쳐짐(다른 곳 클릭하면 원복) */
+.sched2-expandable{ cursor:pointer; color: var(--ink-soft); }
+.sched2-expandable.expanded{ white-space:normal; overflow:visible; text-overflow:clip; background: var(--surface-2); }
+.sched2-prog-select{
+  appearance: none; -webkit-appearance:none; -moz-appearance:none;
+  font-family: inherit; cursor:pointer; text-align:center;
+  font-size: 11px; font-weight:700; padding: 3px 4px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft);
+  width: 46px;
+}
+.sched2-prog-select:focus{ outline:none; border-color: var(--primary); }
+.sched2-prog-select.prog-confirm{ background: var(--primary-dim); color: var(--primary); border-color: var(--primary); font-weight:700; }
+.sched2-prog-select.prog-cancel{ background: var(--danger-dim); color: var(--danger); border-color: var(--danger); font-weight:700; }
+/* 비고 입력창: 가로로 나열(인풋+변경 버튼), 자리가 부족하면 다음 줄로 감쌈 */
+.sched2-note-edit{ display:flex; flex-direction:row; align-items:center; gap:6px; flex-wrap:wrap; }
+.sched2-cancel-input{
+  font-family: inherit; font-size: 11.5px; padding: 3px 7px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  width: 170px; max-width: 100%;
+}
+.sched2-cancel-input:focus{ outline:none; border-color: var(--primary); }
+.sched2-apply-btn{
+  appearance:none; border:none; cursor:pointer; font-family:inherit;
+  font-size: 11px; font-weight:700; padding: 3px 10px; border-radius: 6px;
+  background: var(--primary); color:#fff;
+  flex: none;
+}
+/* 시간장소·목표 인라인 수정 입력칸 — 해당 셀 너비에 맞춤(가로로 늘리지 않음) */
+.sched2-inline-input{
+  width: 100%; max-width: 100%; box-sizing: border-box;
+  font-family: inherit; font-size: 11.5px; padding: 3px 6px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+}
+.sched2-inline-input:focus{ outline:none; border-color: var(--primary); }
+/* 일정 목록 행 우측 끝 "수정" 열 — 창출 목록과 동일한 btn-ghost btn-sm 사용 */
+.sched2-table th:nth-child(11), .sched2-table td:nth-child(11){ width: 58px; }
+.sched2-table td:nth-child(11) .btn-sm{ padding: 4px 8px; }
+.sched2-fb{
+  appearance:none; cursor:pointer; font-family:inherit;
+  font-size: 10.5px; font-weight:700; padding: 2px 9px; border-radius: 999px;
+  background: #44483C; color: #fff; border: 1px solid #44483C;
+}
+.sched2-fb.on{ background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }

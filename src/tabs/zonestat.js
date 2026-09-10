@@ -1,6 +1,24 @@
-import { outreachApi, meetingApi } from '../api.js';
+import { outreachApi, meetingApi } from '../core/api.js';
 import { STATUS_OPTIONS } from './outreach.js';
-import { renderZoneSeg, nameMatch } from '../utils.js';
+import { renderZoneSeg } from '../core/zone.js';
+import { nameMatch } from '../core/format.js';
+
+export const TEMPLATE = `
+    <div class="panel-head">
+      <div>
+        <h2>섭외자 리스트</h2>
+      </div>
+    </div>
+    <div class="filter-bar" id="zonestat-filter-bar">
+      <div class="seg-group" id="zonestat-seg-gu"></div>
+      <span class="filter-search-group">
+        <input type="text" class="filter-search" id="zonestat-search" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="zonestat-search-btn">검색</button>
+      </span>
+      <span class="filter-count" id="zonestat-filtered-count"></span>
+    </div>
+    <div id="zonestat-wrap" class="zv-wrap"></div>
+`;
 
 const els = {};
 

@@ -1,31 +1,31 @@
-import { meetingApi } from '../api.js';
-import { nameMatch } from '../utils.js';
+import { meetingApi } from '../core/api.js';
+import { nameMatch } from '../core/format.js';
+import { isoOffset } from '../core/date.js';
+import {
+  bindOutsideClose, expandableCell, meetPersonLabel, renderMeetingDays,
+} from './_meetings-table.js';
+
+export const TEMPLATE = `
+    <div class="panel-head">
+      <div>
+        <h2>만남 일정</h2>
+        <p>기본: 어제 ~ 이후 2주. 기간·이름으로 조회할 수 있습니다.</p>
+      </div>
+      <span class="date-range">
+        <input type="date" id="mv-from"> ~ <input type="date" id="mv-to">
+        <input type="text" class="filter-search" id="mv-name" placeholder="이름" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-search">검색</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-reset">초기화</button>
+      </span>
+    </div>
+    <div id="meetsched-list" class="ms-list"></div>
+`;
 
 const els = {};
 
 let allRows   = [];   // 현재 기간으로 불러온 만남 전체 (이름 필터 전)
 let nameQuery = '';
 let expandedCellKey = null;   // 펼쳐진 시간장소/목표/비고 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
-
-const WD = ['일', '월', '화', '수', '목', '금', '토'];
-
-function todayIso() {
-  const n = new Date();
-  const p = (v) => String(v).padStart(2, '0');
-  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-}
-
-function dayLabel(iso) {
-  if (!iso) return { md: '날짜 미정', dow: '' };
-  const [y, m, d] = iso.split('-').map(Number);
-  return { md: `${m}/${d}`, dow: WD[new Date(y, m - 1, d).getDay()] };
-}
-
-/* 만남자: 인도자/섬김이 (섬김이 없으면 "/섬김이" 생략) — 일정 관리와 동일 규칙 */
-function meetPersonLabel(m) {
-  const parts = [m.indo, m.seomgim].filter(Boolean);
-  return parts.length ? parts.join('/') : '-';
-}
 
 /* 단계만남(2회차 이상)은 날짜 옆에 회차 표기: 날짜(2) — 일정 관리와 동일 */
 function dateText(m) {
@@ -39,43 +39,25 @@ function progLabel(m) {
   return { text: '선택', cls: '' };
 }
 
-/* 시간장소·목표·비고: 평소엔 한 줄 말줄임, 클릭하면 펼쳐짐(다른 곳 클릭 시 원복) — 일정 목록과 동일 */
-function expandableCell(m, field, labelText) {
-  const key = `${m.id}-${field}`;
-  const cls = expandedCellKey === key ? 'sched2-expandable expanded' : 'sched2-expandable';
-  return `<td class="${cls}" data-expand-key="${key}" data-label="${labelText}">${m[field] || ''}</td>`;
-}
-
 /* 일정 관리 표와 같은 컬럼 구성. 보기 전용이라 뱃지/텍스트로만 표시(수정 요소 없음) */
-function section(title, personCol, list) {
-  if (!list.length) return '';
-  const trs = list.map((m) => {
-    const prog = progLabel(m);
-    return `
+const columns = (personCol) =>
+  ['날짜', '구역', '이름', '만남자', personCol, '시간장소', '목표', '피드백', '진행여부', '비고'];
+
+function renderRow(m) {
+  const prog = progLabel(m);
+  return `
     <tr>
       <td data-label="날짜">${dateText(m)}</td>
       <td data-label="구역">${m.zone || '-'}</td>
       <td data-label="이름">${m.hireName || '-'}</td>
       <td data-label="만남자">${meetPersonLabel(m)}</td>
       <td data-label="상담자 · 인도자">${m.gyosa || '-'}</td>
-      ${expandableCell(m, 'meetCn', '시간장소')}
-      ${expandableCell(m, 'goal', '목표')}
+      ${expandableCell(m, 'meetCn', '시간장소', expandedCellKey)}
+      ${expandableCell(m, 'goal', '목표', expandedCellKey)}
       <td data-label="피드백"><span class="ms-view-badge ms-fb${m.feedbackYn === 'Y' ? ' on' : ''}">${m.feedbackYn === 'Y' ? '완료' : '대기'}</span></td>
       <td data-label="진행 여부"><span class="ms-view-badge${prog.cls ? ` ${prog.cls}` : ''}">${prog.text}</span></td>
-      ${expandableCell(m, 'cancelRs', '비고')}
+      ${expandableCell(m, 'cancelRs', '비고', expandedCellKey)}
     </tr>`;
-  }).join('');
-  return `
-    <div class="sched2-section">
-      <div class="sched2-section-title">${title}</div>
-      <table class="sched2-table">
-        <thead><tr>
-          <th>날짜</th><th>구역</th><th>이름</th><th>만남자</th><th>${personCol}</th>
-          <th>시간장소</th><th>목표</th><th>피드백</th><th>진행여부</th><th>비고</th>
-        </tr></thead>
-        <tbody>${trs}</tbody>
-      </table>
-    </div>`;
 }
 
 function render(list) {
@@ -85,30 +67,7 @@ function render(list) {
       : '<div class="ms-empty">선택한 기간에 등록된 만남이 없습니다.</div>';
     return;
   }
-
-  const tIso = todayIso();
-  const groups = new Map();
-  list.forEach((m) => {
-    if (!groups.has(m.meetDt)) groups.set(m.meetDt, []);
-    groups.get(m.meetDt).push(m);
-  });
-
-  els.list.innerHTML = [...groups.keys()].sort().map((iso) => {
-    const group = groups.get(iso);
-    const first = group.filter((m) => m.seq === 1);   // 첫만남: 만남 카운트 없음
-    const step  = group.filter((m) => m.seq > 1);     // 단계만남: 만남 카운트 있음(2회차~)
-    const { md, dow } = dayLabel(iso);
-    const headCls = iso === tIso ? 'sched2-datecell today' : 'sched2-datecell';
-    return `
-      <div class="sched2-daygroup">
-        <div class="${headCls}">${md}${dow ? `<span class="dow">(${dow})</span>` : ''}</div>
-        <div class="sched2-body">
-          ${section('첫만남', '상담사', first)}
-          ${section('단계만남', '교사', step)}
-        </div>
-      </div>`;
-  }).join('');
-
+  els.list.innerHTML = renderMeetingDays(list, { columns, renderRow });
   bindExpand();
 }
 
@@ -124,19 +83,6 @@ function bindExpand() {
   });
 }
 
-/* 펼쳐진 셀 밖을 클릭하면 원래(말줄임) 상태로 되돌림 */
-function bindOutsideClose() {
-  document.addEventListener('click', () => {
-    if (expandedCellKey !== null) { expandedCellKey = null; refresh(); }
-  });
-}
-
-function isoOffset(days) {
-  const n = new Date();
-  n.setDate(n.getDate() + days);
-  const p = (v) => String(v).padStart(2, '0');
-  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-}
 const defaultRange = () => ({ from: isoOffset(-1), to: isoOffset(14) });   // 어제 ~ +2주
 
 /* 불러온 목록에 이름 필터만 적용해 다시 그린다 (API 재호출 없음) */
@@ -168,7 +114,10 @@ export async function initMeetSchedTab() {
   els.to    = document.getElementById('mv-to');
   els.name  = document.getElementById('mv-name');
 
-  bindOutsideClose();
+  // 펼쳐진 셀 밖을 클릭하면 원래(말줄임) 상태로 되돌림
+  bindOutsideClose(() => {
+    if (expandedCellKey !== null) { expandedCellKey = null; refresh(); }
+  });
 
   const d = defaultRange();
   els.from.value = d.from;

@@ -1,0 +1,77 @@
+/* 탭바 (ledger tabs) · 화면 캡처 바 */
+/* ---------- ledger tabs (signature element) ---------- */
+.tabbar{
+  display:flex;
+  gap: 4px;
+  max-width: 1320px;
+  margin: 20px auto 0;
+  padding: 0 6px;
+  position: relative;
+}
+.tab{
+  appearance:none;
+  border:none;
+  cursor:pointer;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 11px 20px 13px;
+  border-radius: 10px 10px 0 0;
+  position: relative;
+  top: 1px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.tab .count{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  margin-left: 6px;
+  color: inherit;
+  opacity: .65;
+}
+.tab:hover{ background: #ECE7D6; color: var(--ink); }
+.tab.active{
+  background: var(--surface);
+  color: var(--primary);
+  border-color: var(--border);
+  box-shadow: 0 -2px 0 var(--primary) inset;
+}
+.tab.active::after{
+  content:"";
+  position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  background: var(--surface);
+}
+
+/* 등록·수정 가능한 탭 — 우측으로 분리하고 색상(accent)으로 구분 */
+.tabbar-edit{
+  display:flex;
+  align-items:flex-end;
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 14px;
+  border-left: 1px dashed var(--border);
+}
+.tabbar-edit-label{
+  align-self:center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--accent);
+  white-space: nowrap;
+  padding: 0 8px 4px 2px;
+}
+.tab-edit{
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.tab-edit:hover{ background: var(--accent); color: #fff; }
+.tab-edit.active{
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--border);
+  box-shadow: 0 -2px 0 var(--accent) inset;
+}

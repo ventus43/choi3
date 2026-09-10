@@ -1,0 +1,89 @@
+/* 창출 목록: entry cards */
+/* ---------- entry cards (outreach) ---------- */
+.day-group{ margin-bottom: 22px; }
+.day-group:last-child{ margin-bottom: 0; }
+.day-label{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 700; color: var(--primary);
+  background: var(--primary-dim);
+  display:inline-block; padding: 3px 10px; border-radius: 6px;
+  margin-bottom: 10px;
+}
+.entry-list{ display:flex; flex-direction:column; gap:10px; }
+.entry-card{
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display:grid;
+  grid-template-columns: auto 1fr minmax(230px, auto);
+  gap: 14px;
+  align-items:center;
+  background: var(--surface);
+}
+.entry-zone{
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600; font-size: 12px; color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 6px;
+  text-align:center;
+  padding: 3px 8px;
+  align-self:center;
+  white-space:nowrap;
+}
+.entry-main .name{ font-weight: 700; font-size: 14.5px; }
+.entry-main .meta{
+  margin-top: 4px; font-size: 12.5px; color: var(--ink-soft);
+  display:flex; flex-wrap:wrap; gap: 4px 12px;
+}
+.entry-main .meta span::before{ content:"·"; margin-right:6px; color: var(--border); }
+.entry-main .meta span:first-child::before{ content:""; margin-right:0; }
+.people{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+.chip{
+  font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--border);
+}
+.chip.required::before{ content:"필수 · "; color: var(--primary); font-weight:700; }
+.chip.optional::before{ content:"선택 · "; color: var(--ink-soft); font-weight:700; }
+.status-pill{
+  font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  white-space: nowrap;
+}
+.status-pill.ongoing{ background: var(--primary); color: #fff; }
+.status-pill.stopped{ background: var(--danger); color: #fff; }
+.status-toggle{
+  appearance:none; border: 1px solid transparent; cursor: pointer; font-family: inherit;
+  transition: filter .12s ease, transform .05s ease;
+}
+.status-toggle:hover{ filter: brightness(0.96); border-color: currentColor; }
+.status-toggle:active{ transform: translateY(1px); }
+.date-edit-btn{
+  appearance:none; border: 1px dashed var(--border); background: var(--surface-2); color: var(--ink-soft);
+  cursor: pointer; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+  white-space: nowrap; transition: border-color .12s ease, color .12s ease;
+}
+.date-edit-btn:hover{ border-color: var(--primary); color: var(--primary); }
+.date-edit-input{
+  box-sizing: border-box; width: 108px;
+  font-family: inherit; font-size: 11px; padding: 2px 4px; border-radius: 7px;
+  border: 1px solid var(--primary); background: var(--surface); color: var(--ink);
+}
+/* 기간별 날짜 조회 컨트롤 (만남 일정 / 일정 목록 패널 헤더) */
+.date-range{ display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; }
+.date-range input[type="date"]{
+  width:auto; font-family:inherit; font-size:12px; padding:5px 8px;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--ink);
+}
+.date-range input[type="date"]:focus{ outline:none; border-color:var(--primary); }
+
+.entry-actions{ display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+.icon-btn{
+  border:none; background:transparent; cursor:pointer; color: var(--ink-soft);
+  font-size: 15px; padding: 4px;
+}
+.icon-btn:hover{ color: var(--danger); }
+
+.empty{
+  text-align:center; padding: 34px 12px; color: var(--ink-soft); font-size: 13px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
+}

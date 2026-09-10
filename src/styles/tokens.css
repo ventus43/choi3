@@ -1,0 +1,39 @@
+/* 디자인 토큰 · 폰트 · 기본 리셋 */
+@import url('https://cdn.jsdelivr.net/npm/jetbrains-mono@1.0.6/css/jetbrains-mono.css');
+@font-face {
+  font-family: 'Pretendard';
+  src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+}
+
+:root{
+  --bg: #FAF7EF;
+  --surface: #FFFFFF;
+  --surface-2: #F3EFE2;
+  --ink: #262A20;
+  --ink-soft: #6B6F5F;
+  --primary: #15703A;
+  --primary-light: #2FA85C;
+  --primary-dim: #C4EBCF;
+  --accent: #A85D00;
+  --accent-dim: #FBDCA0;
+  --danger: #BF2A1B;
+  --danger-dim: #FAC5BB;
+  --info: #1660C4;
+  --info-dim: #C6DDFA;
+  --border: #D9D2BC;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(38,42,32,0.06), 0 6px 20px rgba(38,42,32,0.05);
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  font-weight: 450;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.mono{ font-family: 'JetBrains Mono', 'Pretendard', monospace; }

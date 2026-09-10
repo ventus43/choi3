@@ -1,0 +1,623 @@
+/* 반응형 (모바일) — 반드시 기본 규칙 뒤에 로드되어야 media query 가 이김 */
+/* ============================================================
+   창출 목록 카드 — 모바일 (5열, 각 열 2줄). 이 블록은 .entry-main/.em-* 기본 규칙보다
+   뒤에 있어야 media query가 이김. 구역은 이름 열 위쪽에 표시(별도 열 제거).
+   [구역/이름/시간장소] | [인·섬 / 교] | [진행 / S0~6] | [센터입력 / 확인] | [수정 / 제외]
+   ============================================================ */
+@media (max-width: 720px){
+  .entry-card{
+    grid-template-columns: minmax(0,1.2fr) minmax(0,0.9fr) minmax(0,0.72fr) minmax(0,0.82fr) auto;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    gap: 6px 5px;
+    padding: 10px 6px;
+  }
+  .entry-zone{
+    grid-column: 1; grid-row: 1;
+    justify-self: start; align-self: start;
+    margin-bottom: 2px;
+  }
+  .entry-main{ display: contents; }
+  .entry-main > .em-a{
+    grid-column: 1; grid-row: 2;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0;
+  }
+  .entry-main > .em-c,
+  .entry-main > .em-d{
+    grid-row: 1 / 3;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0;
+  }
+  .entry-main > .em-b{
+    grid-column: 2; grid-row: 1 / 3;
+    display: flex; flex-flow: row wrap; align-items: flex-start; gap: 2px 4px; min-width: 0;
+  }
+  .entry-main > .em-c{ grid-column: 3; }
+  .entry-main > .em-d{ grid-column: 4; }
+  .em-a .name{ font-size: 13.5px; }
+  .em-a .meet-inline{ white-space: normal; overflow-wrap: anywhere; }
+  /* 인원 열: 인·섬 한 줄, 교(3번째)는 다음 줄 */
+  .em-b .person-tag{ font-size: 11px; }
+  .em-b .person-tag:nth-child(3){ flex-basis: 100%; }
+  .em-b .tm-badges{ display: flex; flex-flow: row wrap; align-items: stretch; gap: 3px; width: 100%; }
+  .em-b .tm-btn{ flex: 1 1 40%; }
+  .em-b .tm-btn:nth-child(3){ flex-basis: 100%; }
+  .em-c > *{ width: 100%; max-width: 100%; }
+  /* 센터 열: 입력 위, 확인 버튼 아래 */
+  .em-d .ct-inline{ flex-direction: column; align-items: stretch; gap: 3px; width: 100%; }
+  .em-d .ct-label{ font-size: 10px; }
+  .em-d .ct-input{ width: 100%; }
+  .entry-card > .add-meet-wrap{
+    grid-column: 5; grid-row: 1 / 3; padding-top: 0;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .entry-card > .add-meet-wrap .btn-sm{ width: 100%; justify-content: center; white-space: nowrap; padding: 5px 5px; }
+  .entry-card > .person-form{ grid-column: 1 / -1; margin-top: 6px; }
+}
+
+/* ============================================================
+   모바일 사용성 보강
+   - 탭/필터/등록 버튼의 터치 영역을 확보하고, 정보 밀도를 낮춤
+   - 가로 표는 카드형 행으로 바꿔 한 손으로 읽기 쉽게 처리
+   ============================================================ */
+@media (max-width: 640px){
+  html{ -webkit-text-size-adjust: 100%; }
+  body{ min-width: 320px; }
+
+  .app-header{ padding: 18px 16px 0; }
+  .brand h1{ font-size: 20px; line-height: 1.25; }
+  .header-sub{ display: none; }
+
+  .screenshot-bar-wrap{ margin-top: 12px; }
+  .screenshot-bar{
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  .screenshot-bar::-webkit-scrollbar{ display:none; }
+  .screenshot-bar button{ flex: 0 0 auto; min-height: 36px; }
+  .ss-label, .ss-status{ display:none; }
+
+  .tabbar{
+    margin-top: 14px !important;
+    gap: 6px;
+    padding: 0 12px;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x proximity;
+  }
+  .tabbar::after{
+    content:"";
+    flex: 0 0 6px;
+  }
+  .tab{
+    min-height: 44px;
+    padding: 11px 14px 13px;
+    font-size: 13px;
+    scroll-snap-align: start;
+  }
+  .tab .count{ font-size: 10px; margin-left: 4px; }
+  .tabbar-edit{ gap: 6px; margin-left: 2px; padding-left: 8px; }
+
+  .stage{ margin-bottom: 40px; padding: 0 12px; }
+  .panel{
+    padding: 16px 12px 20px;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 1px 2px rgba(38,42,32,.06), 0 10px 24px rgba(38,42,32,.06);
+  }
+  .panel-head{ align-items: stretch; margin-bottom: 16px; }
+  .panel-head h2{ font-size: 18px; }
+  .panel-head p{ font-size: 12px; line-height: 1.55; }
+  .panel-head-left, .panel-head-right, .panel-head-tools{ width:100%; }
+  .panel-head-right{ display:flex; flex-direction:column; gap:10px; }
+  .panel-head-tools{ display:flex; flex-wrap:wrap; gap:8px; }
+  .panel-head-zone{ width:100%; min-height:44px; margin-top:8px; }
+
+  .btn{ min-height:44px; padding:10px 14px; font-size:14px; justify-content:center; }
+  .btn-sm{ min-height:38px; padding:8px 11px; font-size:13px; }
+  .btn-primary{ width:100%; }
+  .panel-head .btn-primary{ width:100%; }
+  .btn-plus{ flex:0 0 20px; }
+
+  .filter-bar{ align-items:stretch; gap:10px; margin:14px 0 12px; }
+  .filter-search-group{ width:100%; margin-left:0; }
+  .filter-search{ flex:1; min-width:0; min-height:42px; font-size:16px; }
+  .filter-select{ min-height:42px; font-size:16px; }
+  .filter-count{ width:100%; margin:0 !important; padding-left:2px; }
+  .seg-group{ width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:2px; scrollbar-width:none; }
+  .seg-group::-webkit-scrollbar{ display:none; }
+  .seg-btn{ flex:0 0 auto; min-height:40px; padding:8px 13px; font-size:13px; }
+
+  .date-range{ display:grid; grid-template-columns:1fr 1fr; width:100%; gap:8px; }
+  .date-range input[type="date"]{ width:100%; min-height:42px; font-size:16px; }
+  .date-range input[type="text"]{ grid-column:1 / -1; }
+  .date-range .btn{ width:100%; }
+
+  .add-form{ margin-top:12px; padding:14px 12px; }
+  .of-first-row, .of-zone-row{ gap:10px; }
+  .of-first-row .of-ff{ flex-basis:100%; }
+  .of-zone-row .of-ff-auto{ flex:1 1 120px; }
+  .of-jiin{ min-height:40px; margin-top:18px; padding:0 4px; }
+  label{ font-size:12px; margin-bottom:6px; }
+  input, select{ min-height:44px; padding:10px 12px; font-size:16px; }
+  .tm-checks{ gap:8px; flex-wrap:wrap; }
+  .tm-checks label{ min-height:38px; padding:0 4px; font-size:13px; }
+  .form-actions{ gap:8px; }
+  .form-actions .btn{ flex:1 1 calc(50% - 4px); }
+  .form-actions .btn:last-child{ flex-basis:100%; }
+
+  .day-group{ margin-bottom:18px; }
+  .day-label{ font-size:12px; padding:5px 10px; }
+  .entry-list{ gap:8px; }
+  .entry-card{ border-radius:10px; }
+  .entry-main .meet-inline, .entry-main .meta-inline{ font-size:11.5px; }
+  .person-form{ padding:12px 10px; }
+  .pf-row{ align-items:stretch; flex-wrap:wrap; }
+  .pf-role{ width:100%; }
+  .pf-gu{ width:72px; min-height:40px; }
+  .pf-name{ min-height:40px; }
+
+  .stat-row{ gap:8px; }
+  .stat{ min-height:86px; padding:14px 10px; }
+
+  /* 일반 테이블(TM 현황/구역 관리): 열을 숨기지 않고 한 행을 카드로 표현 */
+  #panel-check table, #member-table{ display:block; overflow:visible; white-space:normal; }
+  #panel-check table thead, #member-table thead{ display:none; }
+  #panel-check table tbody, #member-table tbody{ display:block; }
+  #panel-check table tr, #member-table tbody tr{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:0 12px;
+    margin-bottom:10px;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--surface);
+  }
+  #panel-check table td, #member-table tbody td{
+    display:flex;
+    min-width:0;
+    flex-direction:column;
+    gap:2px;
+    padding:6px 0;
+    border:none;
+    font-size:13px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  #panel-check table td::before, #member-table tbody td::before{
+    content:attr(data-label);
+    color:var(--ink-soft);
+    font-size:10.5px;
+    font-weight:700;
+  }
+  #panel-check table td:nth-child(3), #member-table tbody td:nth-child(2){ font-size:15px; font-weight:800; }
+  #panel-check table td:nth-child(9), #member-table tbody td:nth-last-child(2){ grid-column:1; }
+  #panel-check table td:nth-child(10), #member-table tbody td:last-child{ grid-column:2; }
+  #member-table tbody td:last-child, #member-table tbody td:nth-last-child(2){ align-items:stretch; }
+  #member-table .btn-icon{ min-height:38px; border:1px solid var(--border); }
+
+  .zv-wrap{ margin-inline:-12px; padding-inline:12px; }
+  .zv-table{ min-width:700px; }
+  .ms-row{ grid-template-columns:38px 28px minmax(68px,1fr) minmax(0,1.6fr); gap:6px; padding:8px 4px; }
+  .ms-row .ms-tag{ grid-column:4; justify-self:start; }
+  .sched-card2{ align-items:stretch; padding:12px; }
+  .sched-grid{ grid-template-columns:1fr; gap:0; }
+  .sc-goal, .sc-place{ border-left:none; padding-left:0; }
+}
+
+/* ============================================================
+   모바일 업무 화면: 세로 카드 대신 가로형 컴팩트 그리드
+   각 행의 핵심 상태를 같은 줄에 배치하고, 긴 텍스트만 넓은 줄을 사용한다.
+   ============================================================ */
+@media (max-width: 640px){
+  /* ── 창출 목록: 이름 · TM · 진행 · 작업을 같은 행의 열로 유지 ── */
+  #panel-outreach .entry-card{
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, .9fr) minmax(0, .9fr) minmax(54px, .7fr);
+    grid-template-rows: auto auto;
+    gap: 6px 8px;
+    padding: 10px 9px;
+  }
+  #panel-outreach .entry-zone{ grid-column:1; grid-row:1; margin:0; }
+  #panel-outreach .entry-main{ display:contents; }
+  #panel-outreach .entry-main > .em-a{
+    grid-column:1; grid-row:2;
+    display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-width:0;
+  }
+  #panel-outreach .entry-main > .em-b{
+    grid-column:2; grid-row:1 / 3;
+    display:flex; flex-direction:column; min-width:0;
+  }
+  #panel-outreach .entry-main > .em-c{
+    grid-column:3; grid-row:1 / 3;
+    display:grid; grid-template-columns:1fr; align-content:start; gap:5px; min-width:0;
+  }
+  #panel-outreach .entry-main > .em-d{
+    grid-column:4; grid-row:1;
+    display:flex; min-width:0;
+  }
+  #panel-outreach .entry-card > .add-meet-wrap{
+    grid-column:4; grid-row:2; padding:0;
+    display:flex; flex-direction:column; gap:5px; min-width:0;
+  }
+  #panel-outreach .em-a .name{ font-size:14px; line-height:1.25; }
+  #panel-outreach .em-a .meet-inline{
+    font-size:11px; line-height:1.35; white-space:normal; overflow-wrap:normal; word-break:keep-all;
+  }
+  #panel-outreach .em-b .tm-badges{
+    display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:3px; width:100%;
+  }
+  #panel-outreach .em-b .tm-btn{
+    min-width:0; min-height:34px; padding:3px 2px; white-space:nowrap; font-size:10px;
+  }
+  #panel-outreach .em-c .prg-select,
+  #panel-outreach .em-c .status-select,
+  #panel-outreach .em-d .ct-input{
+    width:100%; min-height:34px; padding:4px 5px; font-size:11px; white-space:nowrap;
+  }
+  #panel-outreach .em-d .ct-inline{ width:100%; margin:0; flex-direction:column; gap:3px; }
+  #panel-outreach .em-d .ct-label{ font-size:10px; white-space:nowrap; }
+  #panel-outreach .add-meet-wrap .btn-sm{
+    width:100%; min-height:34px; padding:4px 3px; font-size:10px; white-space:nowrap;
+  }
+  #panel-outreach .entry-card > .person-form{ grid-column:1 / -1; }
+
+  /* ── 만남 일정: 날짜 · 회차 · 이름 · 시간/장소 · 상태를 한 행에 ── */
+  #panel-meetsched .ms-row{
+    grid-template-columns:48px 34px minmax(64px, .8fr) minmax(0, 1.55fr) auto;
+    gap:6px; min-height:44px; padding:8px 6px; align-items:center;
+  }
+  #panel-meetsched .ms-date,
+  #panel-meetsched .ms-seq,
+  #panel-meetsched .ms-name,
+  #panel-meetsched .ms-meet,
+  #panel-meetsched .ms-tag{ min-width:0; }
+  #panel-meetsched .ms-date{ font-size:10.5px; white-space:nowrap; }
+  #panel-meetsched .ms-name{ font-size:12px; }
+  #panel-meetsched .ms-meet{ font-size:11.5px; white-space:nowrap; }
+  #panel-meetsched .ms-row .ms-tag{ grid-column:auto; justify-self:end; }
+
+  /* ── 일정 목록: 11개 필드를 4열×4행 그리드로 재배치 ── */
+  .sched2-section{ overflow:visible; }
+  .sched2-table{ display:table; width:100%; min-width:0; table-layout:fixed; }
+  .sched2-table thead{ display:none; }
+  .sched2-table tbody{ display:block; }
+  .sched2-table tr{
+    display:grid;
+    grid-template-columns:minmax(0, .9fr) minmax(0, .55fr) minmax(0, .85fr) minmax(0, 1.2fr);
+    gap:0 8px;
+    margin:0 0 10px;
+    padding:9px 10px;
+    border:1px solid var(--border);
+    border-radius:9px;
+    background:var(--surface);
+  }
+  .sched2-table td{
+    display:flex; min-width:0; align-items:center;
+    min-height:34px; padding:5px 0 !important;
+    border:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:11.5px;
+  }
+  .sched2-table td::before{ display:none; }
+  .sched2-table td:nth-child(1){ grid-column:1; grid-row:1; }
+  .sched2-table td:nth-child(2){ grid-column:2; grid-row:1; }
+  .sched2-table td:nth-child(3){ grid-column:3; grid-row:1; font-weight:800; font-size:13px; }
+  .sched2-table td:nth-child(4){ grid-column:4; grid-row:1; }
+  .sched2-table td:nth-child(5){ grid-column:1; grid-row:2; }
+  .sched2-table td:nth-child(6){ grid-column:2 / 5; grid-row:2; }
+  .sched2-table td:nth-child(7){ grid-column:1 / 3; grid-row:3; }
+  .sched2-table td:nth-child(8){ grid-column:3; grid-row:3; }
+  .sched2-table td:nth-child(9){ grid-column:4; grid-row:3; }
+  .sched2-table td:nth-child(10){ grid-column:1 / 4; grid-row:4; }
+  .sched2-table td:nth-child(11){ grid-column:4; grid-row:4; }
+  .sched2-table .sched2-expandable{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sched2-table .sched2-expandable.expanded{ white-space:normal; overflow:visible; }
+  .sched2-prog-select{ width:100%; min-height:34px; font-size:11px; }
+  .sched2-inline-input,
+  .sched2-cancel-input{
+    width:100%; min-height:38px; padding:7px 8px;
+    border:2px solid var(--primary-light); background:#fffdf6; font-size:13px;
+  }
+  .sched2-note-edit{ width:100%; flex-wrap:nowrap; gap:5px; }
+  .sched2-note-edit .sched2-cancel-input{ min-width:0; }
+  .sched2-apply-btn,
+  .sched2-table td:nth-child(11) .btn-sm{
+    min-height:38px; padding:7px 10px; border-radius:7px; white-space:nowrap; font-size:12px;
+  }
+  .sched2-table tr:has(.sched2-inline-input),
+  .sched2-table tr:has(.sched2-cancel-input){
+    border:2px solid var(--primary-light); background:var(--primary-dim);
+  }
+
+  /* ── TM 현황: 날짜 · 구역 · 이름 · TM 담당과 점검 상태를 가로 그리드로 ── */
+  #panel-check table{ display:block; overflow:visible; white-space:normal; }
+  #panel-check table thead{ display:none; }
+  #panel-check table tbody{ display:block; }
+  #panel-check table tr{
+    display:grid;
+    grid-template-columns:minmax(0, .9fr) minmax(0, .55fr) minmax(0, 1fr) minmax(0, 1.1fr);
+    gap:0 8px; margin:0 0 9px; padding:9px 10px;
+    border:1px solid var(--border); border-radius:9px; background:var(--surface);
+  }
+  #panel-check table td{
+    display:flex; align-items:center; min-width:0; min-height:34px; padding:4px 0;
+    border:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11.5px;
+  }
+  #panel-check table td::before{ display:none; }
+  #panel-check table td:nth-child(1){ grid-column:1; grid-row:1; }
+  #panel-check table td:nth-child(2){ grid-column:2; grid-row:1; }
+  #panel-check table td:nth-child(3){ grid-column:3; grid-row:1; font-weight:800; font-size:13px; }
+  #panel-check table td:nth-child(4){ grid-column:4; grid-row:1; }
+  #panel-check table td:nth-child(5){ grid-column:1; grid-row:2; }
+  #panel-check table td:nth-child(6){ grid-column:2; grid-row:2; }
+  #panel-check table td:nth-child(7){ grid-column:3; grid-row:2; }
+  #panel-check table td:nth-child(8){ grid-column:4; grid-row:2; }
+  #panel-check table td:nth-child(9){ grid-column:1; grid-row:3; }
+  #panel-check table td:nth-child(10){ grid-column:2 / 5; grid-row:3; }
+  #panel-check .check-tag,
+  #panel-check .status-pill{ min-height:28px; padding:5px 8px; white-space:nowrap; }
+}
+
+/* ============================================================
+   모바일 정보 우선 화면
+   각 데이터에 '무엇인지'와 '값'을 명확히 나누어 읽기 쉽게 표시한다.
+   ============================================================ */
+@media (max-width: 640px){
+  :root{ --mobile-label:#758071; }
+
+  .panel{ padding:18px 14px 24px; }
+  .panel-head{ gap:12px; margin-bottom:18px; }
+  .panel-head h2{
+    font-size:21px; letter-spacing:-.04em; line-height:1.25;
+    color:var(--ink); margin:0;
+  }
+  .panel-head p{
+    display:block; margin-top:7px; padding-left:10px;
+    border-left:3px solid var(--primary-light);
+    font-size:12.5px; line-height:1.55; color:var(--ink-soft);
+  }
+  .panel-head-left .panel-head-title{ width:100%; }
+  .panel-head-zone{ margin-top:10px; }
+
+  /* 공통: 제목은 작고 조용하게, 값은 크고 선명하게 */
+  .mobile-field-label,
+  .sched2-table td::before,
+  #panel-check table td::before{
+    display:block;
+    color:var(--mobile-label);
+    font-size:10px;
+    font-weight:800;
+    line-height:1.2;
+    letter-spacing:.02em;
+  }
+
+  /* ── 창출 목록 ── */
+  #panel-outreach .entry-card{
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows:auto auto auto auto;
+    gap:10px 12px;
+    padding:14px;
+    border-radius:12px;
+  }
+  #panel-outreach .entry-zone{
+    grid-column:1; grid-row:1;
+    justify-self:start; align-self:center;
+    font-size:11px; padding:5px 9px;
+  }
+  #panel-outreach .entry-card > .add-meet-wrap{
+    grid-column:2; grid-row:1;
+    flex-direction:row; justify-content:flex-end; align-items:center;
+    gap:6px;
+  }
+  #panel-outreach .add-meet-wrap .btn-sm{
+    width:auto; min-width:54px; min-height:36px;
+    padding:6px 9px; font-size:11px;
+  }
+  #panel-outreach .entry-main{ display:contents; }
+  #panel-outreach .entry-main > .em-a,
+  #panel-outreach .entry-main > .em-b,
+  #panel-outreach .entry-main > .em-c,
+  #panel-outreach .entry-main > .em-d{
+    display:flex; flex-direction:column; align-items:stretch; min-width:0;
+    gap:6px; padding:10px;
+    background:var(--surface-2); border-radius:8px;
+  }
+  #panel-outreach .entry-main > .em-a{ grid-column:1 / -1; grid-row:2; }
+  #panel-outreach .entry-main > .em-b{ grid-column:1; grid-row:3; }
+  #panel-outreach .entry-main > .em-c{ grid-column:2; grid-row:3; }
+  #panel-outreach .entry-main > .em-d{ grid-column:1 / -1; grid-row:4; }
+  #panel-outreach .entry-main > .em-a::before{ content:"대상자 · 만남 정보"; }
+  #panel-outreach .entry-main > .em-b::before{ content:"TM 점검"; }
+  #panel-outreach .entry-main > .em-c::before{ content:"진행 상태"; }
+  #panel-outreach .entry-main > .em-d::before{ content:"센터 정보"; }
+  #panel-outreach .entry-main > .em-a::before,
+  #panel-outreach .entry-main > .em-b::before,
+  #panel-outreach .entry-main > .em-c::before,
+  #panel-outreach .entry-main > .em-d::before{
+    color:var(--mobile-label); font-size:10px; font-weight:800; letter-spacing:.02em;
+  }
+  #panel-outreach .em-a .name{ font-size:16px; line-height:1.25; }
+  #panel-outreach .em-a .meet-inline{ font-size:12px; line-height:1.45; white-space:normal; }
+  #panel-outreach .em-b .tm-badges{ grid-template-columns:repeat(3, 1fr); gap:5px; }
+  #panel-outreach .em-b .tm-btn{ min-height:34px; font-size:11px; }
+  #panel-outreach .em-c{ grid-template-columns:1fr 1fr !important; }
+  #panel-outreach .em-c::before{ grid-column:1 / -1; }
+  #panel-outreach .em-c .prg-select,
+  #panel-outreach .em-c .status-select{ min-height:36px; font-size:12px; }
+  #panel-outreach .em-d:has(.ct-inline){ display:flex; }
+  #panel-outreach .em-d:not(:has(.ct-inline)){ display:none; }
+  #panel-outreach .person-form{ margin-top:0; }
+
+  /* ── 만남 일정 ── */
+  #panel-meetsched .ms-row{
+    grid-template-columns:1fr auto;
+    gap:8px 12px; min-height:0;
+    padding:12px; margin-bottom:8px;
+    border:1px solid var(--border); border-radius:10px;
+    background:var(--surface);
+  }
+  #panel-meetsched .ms-row + .ms-row{ border-top:1px solid var(--border); }
+  #panel-meetsched .ms-date{ grid-column:1; grid-row:1; font-size:12px; }
+  #panel-meetsched .ms-seq{ grid-column:2; grid-row:1; min-width:36px; padding:3px 6px; }
+  #panel-meetsched .ms-name{ grid-column:1 / -1; grid-row:2; font-size:16px; white-space:normal; }
+  #panel-meetsched .ms-meet{ grid-column:1 / -1; grid-row:3; font-size:12.5px; white-space:normal; line-height:1.45; }
+  #panel-meetsched .ms-tag{ grid-column:1; grid-row:4; justify-self:start; min-height:28px; padding:5px 9px; }
+  #panel-meetsched .ms-date::before{ content:"일정  "; color:var(--mobile-label); font-size:10px; }
+  #panel-meetsched .ms-name::before{ content:"대상자"; display:block; color:var(--mobile-label); font-size:10px; margin-bottom:3px; }
+  #panel-meetsched .ms-meet::before{ content:"시간 · 장소"; display:block; color:var(--mobile-label); font-size:10px; margin-bottom:3px; }
+
+  /* ── 일정 목록: 필드 라벨 + 값을 2열 정보 카드로 ── */
+  .sched2-table tr{
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+    gap:0 12px; padding:12px;
+    border-radius:11px;
+  }
+  .sched2-table td{
+    display:flex; flex-direction:column; align-items:flex-start;
+    justify-content:center; min-height:48px;
+    white-space:normal; overflow:visible; text-overflow:clip;
+    border-bottom:1px solid rgba(228,223,206,.75);
+    font-size:13px; line-height:1.35;
+  }
+  .sched2-table td:nth-child(1){ grid-column:1; grid-row:1; }
+  .sched2-table td:nth-child(2){ grid-column:2; grid-row:1; }
+  .sched2-table td:nth-child(3){ grid-column:1; grid-row:2; font-size:16px; }
+  .sched2-table td:nth-child(4){ grid-column:2; grid-row:2; }
+  .sched2-table td:nth-child(5){ grid-column:1; grid-row:3; }
+  .sched2-table td:nth-child(6){ grid-column:2; grid-row:3; }
+  .sched2-table td:nth-child(7){ grid-column:1 / -1; grid-row:4; }
+  .sched2-table td:nth-child(8){ grid-column:1; grid-row:5; }
+  .sched2-table td:nth-child(9){ grid-column:2; grid-row:5; }
+  .sched2-table td:nth-child(10){ grid-column:1; grid-row:6; }
+  .sched2-table td:nth-child(11){ grid-column:2; grid-row:6; align-items:stretch; }
+  .sched2-table td:nth-child(7),
+  .sched2-table td:nth-child(10),
+  .sched2-table td:nth-child(11){ border-bottom:none; }
+  .sched2-table .sched2-expandable{ white-space:normal; overflow:visible; }
+  .sched2-prog-select{ min-height:38px; font-size:13px; }
+  .sched2-inline-input,
+  .sched2-cancel-input{ min-height:42px; font-size:14px; }
+  .sched2-apply-btn,
+  .sched2-table td:nth-child(11) .btn-sm{ width:100%; min-height:42px; font-size:13px; }
+
+  /* ── TM 현황: 날짜/구역/이름/담당을 먼저, 점검값을 다음 줄에 ── */
+  #panel-check table tr{
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+    gap:0 12px; padding:12px; border-radius:11px;
+  }
+  #panel-check table td{
+    display:flex; flex-direction:column; align-items:flex-start;
+    justify-content:center; min-height:46px;
+    white-space:normal; overflow:visible; text-overflow:clip;
+    border-bottom:1px solid rgba(228,223,206,.75);
+    font-size:13px; line-height:1.35;
+  }
+  #panel-check table td:nth-child(1){ grid-column:1; grid-row:1; }
+  #panel-check table td:nth-child(2){ grid-column:2; grid-row:1; }
+  #panel-check table td:nth-child(3){ grid-column:1; grid-row:2; font-size:16px; }
+  #panel-check table td:nth-child(4){ grid-column:2; grid-row:2; }
+  #panel-check table td:nth-child(5){ grid-column:1; grid-row:3; }
+  #panel-check table td:nth-child(6){ grid-column:2; grid-row:3; }
+  #panel-check table td:nth-child(7){ grid-column:1; grid-row:4; }
+  #panel-check table td:nth-child(8){ grid-column:2; grid-row:4; }
+  #panel-check table td:nth-child(9){ grid-column:1; grid-row:5; border-bottom:none; }
+  #panel-check table td:nth-child(10){ grid-column:2; grid-row:5; border-bottom:none; }
+  #panel-check .check-tag,
+  #panel-check .status-pill{ min-height:32px; padding:6px 10px; font-size:12px; }
+
+  /* ── 만남일정: 10개 필드를 제목·내용 카드로 명확하게 표시 ── */
+  #panel-meetsched .sched2-daygroup{
+    display:block;
+    margin-bottom:14px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+    background:var(--surface);
+  }
+  #panel-meetsched .sched2-datecell{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:10px 13px;
+    border:0;
+    border-bottom:1px solid var(--border);
+    background:var(--surface-2);
+    font-size:13px;
+    font-weight:800;
+  }
+  #panel-meetsched .sched2-body{ padding:10px; }
+  #panel-meetsched .sched2-section{ overflow:visible; }
+  #panel-meetsched .sched2-section-title{
+    margin:4px 2px 8px;
+    padding-left:8px;
+    border-left:3px solid var(--primary-light);
+    font-size:12px;
+    font-weight:800;
+    color:var(--primary);
+  }
+  #panel-meetsched .sched2-table,
+  #panel-meetsched .sched2-table tbody{ display:block; width:100%; }
+  #panel-meetsched .sched2-table thead{ display:none; }
+  #panel-meetsched .sched2-table tr{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+    gap:0 12px;
+    margin:0 0 10px;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fff;
+  }
+  #panel-meetsched .sched2-table td{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:center;
+    min-width:0;
+    min-height:49px;
+    padding:7px 0 !important;
+    border:0;
+    border-bottom:1px solid rgba(228,223,206,.8);
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    overflow-wrap:anywhere;
+    font-size:13px;
+    font-weight:600;
+    line-height:1.4;
+  }
+  #panel-meetsched .sched2-table td::before{
+    display:block;
+    content:attr(data-label);
+    margin-bottom:4px;
+    color:var(--mobile-label);
+    font-size:10px;
+    font-weight:800;
+    line-height:1.2;
+    letter-spacing:.02em;
+  }
+  #panel-meetsched .sched2-table td:nth-child(1){ grid-column:1; grid-row:1; }
+  #panel-meetsched .sched2-table td:nth-child(2){ grid-column:2; grid-row:1; }
+  #panel-meetsched .sched2-table td:nth-child(3){ grid-column:1; grid-row:2; font-size:15px; }
+  #panel-meetsched .sched2-table td:nth-child(4){ grid-column:2; grid-row:2; }
+  #panel-meetsched .sched2-table td:nth-child(5){ grid-column:1; grid-row:3; }
+  #panel-meetsched .sched2-table td:nth-child(6){ grid-column:2; grid-row:3; }
+  #panel-meetsched .sched2-table td:nth-child(7){ grid-column:1 / -1; grid-row:4; }
+  #panel-meetsched .sched2-table td:nth-child(8){ grid-column:1; grid-row:5; }
+  #panel-meetsched .sched2-table td:nth-child(9){ grid-column:2; grid-row:5; }
+  #panel-meetsched .sched2-table td:nth-child(10){ grid-column:1 / -1; grid-row:6; border-bottom:0; }
+  #panel-meetsched .sched2-table td:nth-child(7){ min-height:58px; }
+  #panel-meetsched .sched2-table .sched2-expandable{
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+  }
+  #panel-meetsched .ms-view-badge{
+    display:inline-flex;
+    align-items:center;
+    min-height:32px;
+    padding:6px 10px;
+    font-size:12px;
+    white-space:nowrap;
+  }
+}
