@@ -53,15 +53,15 @@ function section(title, personCol, list) {
     const prog = progLabel(m);
     return `
     <tr>
-      <td>${dateText(m)}</td>
-      <td>${m.zone || '-'}</td>
-      <td>${m.hireName || '-'}</td>
-      <td>${meetPersonLabel(m)}</td>
-      <td>${m.gyosa || '-'}</td>
+      <td data-label="날짜">${dateText(m)}</td>
+      <td data-label="구역">${m.zone || '-'}</td>
+      <td data-label="이름">${m.hireName || '-'}</td>
+      <td data-label="만남자">${meetPersonLabel(m)}</td>
+      <td data-label="상담자 · 인도자">${m.gyosa || '-'}</td>
       ${expandableCell(m, 'meetCn', '시간장소')}
       ${expandableCell(m, 'goal', '목표')}
-      <td><span class="ms-view-badge ms-fb${m.feedbackYn === 'Y' ? ' on' : ''}">${m.feedbackYn === 'Y' ? '완료' : '대기'}</span></td>
-      <td><span class="ms-view-badge${prog.cls ? ` ${prog.cls}` : ''}">${prog.text}</span></td>
+      <td data-label="피드백"><span class="ms-view-badge ms-fb${m.feedbackYn === 'Y' ? ' on' : ''}">${m.feedbackYn === 'Y' ? '완료' : '대기'}</span></td>
+      <td data-label="진행 여부"><span class="ms-view-badge${prog.cls ? ` ${prog.cls}` : ''}">${prog.text}</span></td>
       ${expandableCell(m, 'cancelRs', '비고')}
     </tr>`;
   }).join('');
