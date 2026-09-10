@@ -34,17 +34,27 @@ def meeting_upcoming():
 
 @meetings_bp.route('/meetings/schedule', methods=['GET'])
 def meeting_schedule():
-    # 날짜가 잡힌 모든 만남 + 아직 날짜 없는 첫만남(SEQ=1). 중단(PRG='중단') 섭외자 제외.
-    # 기본은 기간 제한 없음. from/to 쿼리로 지정 시 그 기간의 만남만.
-    rng_sql, rng_params = _date_range()
+    # 중단(PRG='중단') 섭외자 제외.
+    # from/to 없으면: 날짜가 잡힌 모든 만남 + 아직 날짜 없는 첫만남(SEQ=1).
+    # from/to 있으면: 그 기간의 만남 + (기간 밖이어도) 아직 '진행여부=선택' 으로 남은 만남 + 날짜 미정 만남.
+    #   '선택' = 만남(MEETYN='Y')도 취소(CANCELRS 있음)도 아닌 상태 — 처리해야 할 항목이라 기간과 무관하게 노출.
+    frm = (request.args.get('from') or '').strip()
+    to  = (request.args.get('to') or '').strip()
     with db_cursor() as cur:
         where = (" WHERE m.DEL_YN = 'N' AND h.DEL_YN = 'N'"
                  "   AND (h.PRG IS NULL OR h.PRG <> '중단')")
-        if rng_sql:
-            where += rng_sql
+        params = []
+        if frm and to:
+            where += (
+                "   AND ((m.MEET_DT BETWEEN %s AND %s)"
+                "        OR m.MEET_DT IS NULL"
+                "        OR ((m.MEETYN IS NULL OR m.MEETYN <> 'Y')"
+                "            AND (m.CANCELRS IS NULL OR m.CANCELRS = '')))"
+            )
+            params = [frm, to]
         else:
             where += "   AND (m.SEQ = 1 OR m.MEET_DT IS NOT NULL)"
-        cur.execute(_MEET_HIRE_JOIN + where + " ORDER BY m.MEET_DT, m.SEQ, m.NTT_ID", rng_params)
+        cur.execute(_MEET_HIRE_JOIN + where + " ORDER BY m.MEET_DT, m.SEQ, m.NTT_ID", params)
         return jsonify([meeting_with_hire_to_json(r) for r in cur.fetchall()])
 
 

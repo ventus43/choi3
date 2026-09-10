@@ -1,6 +1,7 @@
 import { meetingApi, outreachApi } from '../core/api.js';
 import { renderZoneSelect, zoneMatch } from '../core/zone.js';
 import { nameMatch } from '../core/format.js';
+import { isoOffset } from '../core/date.js';
 import { optimistic } from '../core/dom.js';
 import {
   bindOutsideClose, expandableCell, meetPersonLabel, renderMeetingDays,
@@ -68,6 +69,9 @@ let editingRowId = null;      // 시간장소·목표 수정 중인 meeting id (
 let expandedCellKey = null;   // 펼쳐진 시간장소/목표 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
 
 const els = {};
+
+// 기본 조회 기간: 어제 ~ 이후 2주 (만남 일정 탭과 동일). 기간 밖이어도 '선택' 상태 항목은 API 가 함께 내려줌.
+const defaultRange = () => ({ from: isoOffset(-1), to: isoOffset(14) });
 
 function cacheEls() {
   els.list      = document.getElementById('schedule-list');
@@ -435,6 +439,10 @@ export async function initScheduleTab() {
   cacheEls();
   bindOutsideClose(closeOnOutsideClick);
 
+  const d0 = defaultRange();
+  els.rangeFrom.value = d0.from;
+  els.rangeTo.value = d0.to;
+
   els.toggleBtn.addEventListener('click', () => {
     const opening = !els.form.classList.contains('open');
     els.form.classList.toggle('open', opening);
@@ -451,10 +459,11 @@ export async function initScheduleTab() {
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   });
 
-  // 초기화: 날짜 · 이름 · 구역 필터 전부 비우고 재조회
+  // 초기화: 날짜는 기본 기간(어제~2주)으로, 이름 · 구역 필터는 비우고 재조회
   document.getElementById('schedule-reset-btn').addEventListener('click', () => {
-    els.rangeFrom.value = '';
-    els.rangeTo.value = '';
+    const d = defaultRange();
+    els.rangeFrom.value = d.from;
+    els.rangeTo.value = d.to;
     els.search.value = '';
     nameQuery = '';
     guFilter = '';
