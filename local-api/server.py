@@ -564,7 +564,7 @@ def meeting_delete(mid):
 
 # ── /screenshot  (탭 화면 캡처 → 텔레그램 전송) ──────────────────────────────
 # 프론트가 만든 PNG 를 받아 텔레그램 방으로 전송한다.
-# 토큰/방은 반드시 환경변수로 주입 (choi3.env). 기본값 없음 — 미설정이면 503.
+# 환경변수(choi3.env / SHARED_ENV_FILE)가 있으면 그 값이 우선. 아래는 임시 기본값.
 TELEGRAM_BOT_TOKEN       = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
 TELEGRAM_SCREENSHOT_CHAT = os.environ.get('TELEGRAM_SCREENSHOT_CHAT', '').strip()
 
@@ -612,7 +612,9 @@ def screenshot_send():
         return jsonify({'message': '빈 이미지입니다.'}), 400
 
     label   = (request.form.get('label') or '화면').strip()
-    caption = f'📷 {label}\n{datetime.now().strftime("%Y-%m-%d %H:%M")}'
+    # 캡처 시각은 프론트가 보낸 값을 그대로 사용 (조작자 화면 시간). 없으면 수신 시각으로 폴백.
+    captured = (request.form.get('capturedAt') or '').strip()
+    caption  = f'📷 {label}\n{captured or datetime.now().strftime("%Y-%m-%d %H:%M")}'
 
     # 사진(sendPhoto)으로 먼저 시도 → 치수·용량 초과 등 실패 시 문서로 재시도
     res = _telegram_upload('sendPhoto', 'photo', caption, data)

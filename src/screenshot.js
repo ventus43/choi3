@@ -24,10 +24,13 @@ function setStatus(msg, isError) {
   statusEl.classList.toggle('err', !!isError);
 }
 
-function stamp() {
+/* 캡처 시각(프론트 로컬 시간) — 파일명용 compact / 캡션·전송용 표시 문자열 */
+function captureStamp() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  const date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  const time = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  return { file: `${date.replace(/-/g, '')}_${time.replace(':', '')}`, display: `${date} ${time}` };
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -174,14 +177,16 @@ async function run(panelId) {
       try { await target.reload(); } catch (_) { /* 갱신 실패해도 현재 화면으로 진행 */ }
     }
 
+    const ts = captureStamp();   // 캡처 시각을 프론트에서 확정해 함께 전송
     const blob = await capture(panelId);
     if (!blob) throw new Error('이미지 생성에 실패했습니다.');
 
     setStatus(`${target.label} 전송 중… (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
 
     const fd = new FormData();
-    fd.append('image', blob, `${target.label}_${stamp()}.png`);
+    fd.append('image', blob, `${target.label}_${ts.file}.png`);
     fd.append('label', target.label);
+    fd.append('capturedAt', ts.display);
 
     const res = await fetch(`${BASE_URL}/screenshot`, {
       method: 'POST',
