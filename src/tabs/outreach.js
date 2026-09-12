@@ -1,6 +1,7 @@
-import { outreachApi, memberApi } from '../core/api.js';
+import { outreachApi, memberApi, meetingApi } from '../core/api.js';
 import { renderZoneSelect, zoneMatch } from '../core/zone.js';
 import { nameMatch, taCode, TA_LABEL } from '../core/format.js';
+import { dayLabel } from '../core/date.js';
 import { optimistic } from '../core/dom.js';
 
 export const TEMPLATE = `
@@ -444,11 +445,37 @@ async function handleCtSave(id) {
   });
 }
 
+/* 중단 처리 전 확인: 만남 일정 중 아직 취소되지 않은 것(진행여부=선택 또는 만남)이 있으면
+   먼저 그 만남을 취소해야만 중단할 수 있게 막는다. */
+async function blockedByActiveMeetings(id) {
+  let meetings = [];
+  try {
+    meetings = await meetingApi.list(id);
+  } catch (err) {
+    alert(`만남 일정 확인 실패: ${err.message}`);
+    return true;   // 확인 자체가 실패하면 안전하게 중단 처리 막음
+  }
+  const active = meetings.filter((m) => !m.cancelRs);
+  if (active.length === 0) return false;
+
+  const dates = active
+    .map((m) => (m.meetDt ? `${dayLabel(m.meetDt).md}(${dayLabel(m.meetDt).dow})` : '날짜 미정'))
+    .join(', ');
+  alert(`아직 취소되지 않은 만남 일정이 있어 중단할 수 없습니다.\n먼저 해당 만남을 취소해 주세요. (${dates})`);
+  return true;
+}
+
 async function handlePrgChange(id, value) {
   const entry = entries.find((e) => e.id === id);
   if (!entry) return;
 
   const prev = entry.prg;
+
+  if (value === '중단' && await blockedByActiveMeetings(id)) {
+    render();   // select 를 이전 값(prev)으로 되돌림
+    return;
+  }
+
   entry.prg = value;
 
   try {

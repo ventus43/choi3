@@ -374,9 +374,12 @@ async function loadSchedule() {
   rows = await meetingApi.schedule({ from: els.rangeFrom.value, to: els.rangeTo.value });
 }
 
-/* 첫만남(1회차)에 날짜가 잡혀 있어야 다음 만남을 추가할 수 있음 */
-function hasDatedFirstMeeting(hireId) {
-  return rows.some((m) => m.hireId === hireId && m.seq === 1 && m.meetDt);
+/* 첫만남(1회차)에 날짜가 잡혀 있어야 다음 만남을 추가할 수 있음.
+   화면에 표시된 rows 는 조회 기간에 따라 필터링돼 있어(어제~2주 기본) 첫만남이 그 밖에 있으면
+   빠질 수 있으므로, 조회 기간과 무관하게 해당 대상자의 만남 전체를 별도로 조회해서 판단한다. */
+async function hasDatedFirstMeeting(hireId) {
+  const list = await meetingApi.list(hireId);
+  return list.some((m) => m.seq === 1 && m.meetDt);
 }
 
 async function handleSave() {
@@ -388,9 +391,21 @@ async function handleSave() {
     els.error.classList.add('show');
     return;
   }
-  if (!hasDatedFirstMeeting(hireId)) {
+
+  els.saveBtn.disabled = true;
+  let firstOk;
+  try {
+    firstOk = await hasDatedFirstMeeting(hireId);
+  } catch (err) {
+    els.error.textContent = `대상자 만남 확인 실패: ${err.message}`;
+    els.error.classList.add('show');
+    els.saveBtn.disabled = false;
+    return;
+  }
+  if (!firstOk) {
     els.error.textContent = '첫만남 일정이 아직 없는 대상자입니다. 수정이 필요하면 아래 표에서 첫만남 일정의 날짜를 먼저 입력해 주세요.';
     els.error.classList.add('show');
+    els.saveBtn.disabled = false;
     return;
   }
   els.error.classList.remove('show');
@@ -401,7 +416,6 @@ async function handleSave() {
     goal:   els.goal.value.trim() || null,
   };
 
-  els.saveBtn.disabled = true;
   try {
     await meetingApi.create(hireId, input);
     await loadSchedule();   // 방금 만든 행에 이름·구역 등 조인 정보를 채우기 위해 다시 조회
