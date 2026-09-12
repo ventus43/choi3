@@ -67,8 +67,10 @@
   .brand h1{ font-size: 20px; line-height: 1.25; }
   .header-sub{ display: none; }
 
-  .screenshot-bar-wrap{ margin-top: 12px; }
+  .screenshot-bar-wrap{ margin-top: 12px; width: 100%; }
+  .screenshot-toggle{ min-height: 36px; padding: 6px 14px; }
   .screenshot-bar{
+    width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -77,7 +79,7 @@
   }
   .screenshot-bar::-webkit-scrollbar{ display:none; }
   .screenshot-bar button{ flex: 0 0 auto; min-height: 36px; }
-  .ss-label, .ss-status{ display:none; }
+  .ss-status{ display:none; }
 
   .tabbar{
     margin-top: 14px !important;

@@ -197,12 +197,33 @@ td.tm-col{ text-align: center; }
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
 }
 
-/* 탭 목록 위: 읽기 전용 탭 화면 캡처 → 텔레그램 전송 (내용만큼만 차지) */
+/* 탭 목록 위: 읽기 전용 탭 화면 캡처 → 텔레그램 전송 (내용만큼만 차지, 평소엔 토글로 숨김) */
 .screenshot-bar-wrap {
   max-width: 1320px;
   margin: 14px auto 0;
   padding: 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
+.screenshot-toggle {
+  appearance: none; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-weight: 800; font-size: 12px; line-height: 1;
+  padding: 6px 10px; border-radius: 9px;
+  background: var(--surface);
+  color: var(--primary);
+  border: 1px solid var(--primary-light);
+}
+.screenshot-toggle:hover,
+.screenshot-toggle[aria-expanded="true"] {
+  background: var(--primary-dim); border-color: var(--primary);
+}
+.screenshot-toggle::after {
+  content: '▾'; font-size: 10px; transition: transform .15s ease;
+}
+.screenshot-toggle[aria-expanded="true"]::after { transform: rotate(180deg); }
 .screenshot-bar {
   display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 6px 10px;
@@ -211,9 +232,7 @@ td.tm-col{ text-align: center; }
   border-radius: 9px;
   font-size: 12px;
 }
-.screenshot-bar .ss-label {
-  font-weight: 800; color: var(--primary); margin-right: 2px;
-}
+.screenshot-bar[hidden] { display: none; }
 .screenshot-bar button {
   appearance: none; cursor: pointer; font-family: inherit;
   font-weight: 700; font-size: 12px; line-height: 1;

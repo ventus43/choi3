@@ -215,4 +215,11 @@ export function initScreenshotButtons() {
   bar.querySelectorAll('[data-ss]').forEach((btn) => {
     btn.addEventListener('click', () => run(btn.dataset.ss));
   });
+
+  // 캡처 버튼 묶음은 평소엔 숨겨두고(기본값), 토글 버튼으로 펼침/접음
+  const toggle = document.getElementById('screenshot-toggle');
+  toggle?.addEventListener('click', () => {
+    bar.hidden = !bar.hidden;
+    toggle.setAttribute('aria-expanded', String(!bar.hidden));
+  });
 }
