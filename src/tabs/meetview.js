@@ -34,8 +34,8 @@ function dateText(m) {
 }
 
 function progLabel(m) {
-  if (m.cancelRs) return { text: '취소', cls: 'prog-cancel' };
-  if (m.meetYn === 'Y') return { text: '만남', cls: 'prog-confirm' };
+  if (m.meetSt === 2) return { text: '취소', cls: 'prog-cancel' };
+  if (m.meetSt === 3) return { text: '만남', cls: 'prog-confirm' };
   return { text: '선택', cls: '' };
 }
 

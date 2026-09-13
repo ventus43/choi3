@@ -69,8 +69,8 @@ def hire_to_check(row):
 
 
 # ── /outreach/<hire>/meetings  (CHOIMEETSCHEDULE) ───────────────────────────
-# 섭외자별 만남 스케줄. SEQ=회차, MEETYN=만남여부, FEEDBACKYN=피드백여부,
-# CANCELRS=취소사유(있으면 취소된 만남).
+# 섭외자별 만남 스케줄. SEQ=회차, MEETST=진행여부(1=선택 2=취소 3=만남), FEEDBACKYN=피드백여부,
+# CANCELRS=취소사유(MEETST=2 일 때만 의미 있음).
 
 def meet_to_json(row):
     return {
@@ -81,7 +81,7 @@ def meet_to_json(row):
         'meetCn':     row['MEETCN'] or '',
         'goal':       row['GOAL'] or '',
         'feedbackYn': row['FEEDBACKYN'] or 'N',
-        'meetYn':     row['MEETYN'] or 'N',
+        'meetSt':     row['MEETST'] or 1,
         'cancelRs':   row['CANCELRS'] or '',
         'regDt':      row['REG_DT'].strftime('%Y-%m-%d %H:%M:%S') if row.get('REG_DT') else '',
         'modDt':      row['MOD_DT'].strftime('%Y-%m-%d %H:%M:%S') if row.get('MOD_DT') else '',

@@ -36,8 +36,8 @@ def meeting_upcoming():
 def meeting_schedule():
     # 중단(PRG='중단') 섭외자 제외.
     # from/to 없으면: 날짜가 잡힌 모든 만남 + 아직 날짜 없는 첫만남(SEQ=1).
-    # from/to 있으면: 그 기간의 만남 + (기간 밖이어도) 아직 '진행여부=선택' 으로 남은 만남 + 날짜 미정 만남.
-    #   '선택' = 만남(MEETYN='Y')도 취소(CANCELRS 있음)도 아닌 상태 — 처리해야 할 항목이라 기간과 무관하게 노출.
+    # from/to 있으면: 그 기간의 만남 + (기간 밖이어도) 아직 '진행여부=선택'(MEETST=1) 으로 남은 만남 + 날짜 미정 만남.
+    #   '선택' 은 처리해야 할 항목이라 기간과 무관하게 노출.
     frm = (request.args.get('from') or '').strip()
     to  = (request.args.get('to') or '').strip()
     with db_cursor() as cur:
@@ -48,8 +48,7 @@ def meeting_schedule():
             where += (
                 "   AND ((m.MEET_DT BETWEEN %s AND %s)"
                 "        OR m.MEET_DT IS NULL"
-                "        OR ((m.MEETYN IS NULL OR m.MEETYN <> 'Y')"
-                "            AND (m.CANCELRS IS NULL OR m.CANCELRS = '')))"
+                "        OR m.MEETST = 1)"
             )
             params = [frm, to]
         else:
@@ -91,10 +90,10 @@ def meeting_create(hire_id):
             seq = cur.fetchone()['n']
         cur.execute(
             'INSERT INTO CHOIMEETSCHEDULE'
-            ' (HIREID, SEQ, MEET_DT, MEETCN, GOAL, FEEDBACKYN, MEETYN, CANCELRS)'
+            ' (HIREID, SEQ, MEET_DT, MEETCN, GOAL, FEEDBACKYN, MEETST, CANCELRS)'
             ' VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',
             (hire_id, seq, body.get('meetDt') or None, body.get('meetCn'), body.get('goal'),
-             body.get('feedbackYn') or 'N', body.get('meetYn') or 'N',
+             body.get('feedbackYn') or 'N', body.get('meetSt') or 1,
              body.get('cancelRs')),
         )
         cur.execute('SELECT * FROM CHOIMEETSCHEDULE WHERE NTT_ID=%s', (cur.lastrowid,))
@@ -106,7 +105,7 @@ def meeting_update(mid):
     body = request.get_json(silent=True) or {}
     col_map = {
         'seq': 'SEQ', 'meetDt': 'MEET_DT', 'meetCn': 'MEETCN', 'goal': 'GOAL',
-        'feedbackYn': 'FEEDBACKYN', 'meetYn': 'MEETYN', 'cancelRs': 'CANCELRS',
+        'feedbackYn': 'FEEDBACKYN', 'meetSt': 'MEETST', 'cancelRs': 'CANCELRS',
     }
     sets, vals = build_update(col_map, body)
     if not sets:

@@ -445,8 +445,8 @@ async function handleCtSave(id) {
   });
 }
 
-/* 중단 처리 전 확인: 만남 일정 중 아직 취소되지 않은 것(진행여부=선택 또는 만남)이 있으면
-   먼저 그 만남을 취소해야만 중단할 수 있게 막는다. */
+/* 중단 처리 전 확인: 만남 일정 중 진행여부가 선택(대기중)인 것이 있으면
+   먼저 그 만남을 확정하거나 취소해야만 중단할 수 있게 막는다. (확정된 만남은 막지 않음) */
 async function blockedByActiveMeetings(id) {
   let meetings = [];
   try {
@@ -455,13 +455,13 @@ async function blockedByActiveMeetings(id) {
     alert(`만남 일정 확인 실패: ${err.message}`);
     return true;   // 확인 자체가 실패하면 안전하게 중단 처리 막음
   }
-  const active = meetings.filter((m) => !m.cancelRs);
-  if (active.length === 0) return false;
+  const pending = meetings.filter((m) => m.meetSt === 1);
+  if (pending.length === 0) return false;
 
-  const dates = active
+  const dates = pending
     .map((m) => (m.meetDt ? `${dayLabel(m.meetDt).md}(${dayLabel(m.meetDt).dow})` : '날짜 미정'))
     .join(', ');
-  alert(`아직 취소되지 않은 만남 일정이 있어 중단할 수 없습니다.\n먼저 해당 만남을 취소해 주세요. (${dates})`);
+  alert(`아직 선택(대기중) 상태인 만남 일정이 있어 중단할 수 없습니다.\n먼저 해당 만남을 확정하거나 취소해 주세요. (${dates})`);
   return true;
 }
 

@@ -110,11 +110,11 @@ function feedbackBtn(m) {
   return `<button type="button" class="sched2-fb ${on ? 'on' : ''}" data-fb="${m.id}">${on ? '완료' : '대기'}</button>`;
 }
 
-/* 진행여부: 선택(기본) / 만남(meetYn=Y) / 취소(cancelRs 있음) — 취소된 항목도 표에 계속 남음 */
+/* 진행여부: 선택(meetSt=1) / 취소(meetSt=2) / 만남(meetSt=3) — 취소된 항목도 표에 계속 남음 */
 function progState(m) {
   if (pendingCancelId === m.id) return 'cancel';   // 취소 선택 후 사유 입력 대기 중인 상태도 취소로 표시
-  if (m.cancelRs) return 'cancel';
-  if (m.meetYn === 'Y') return 'confirm';
+  if (m.meetSt === 2) return 'cancel';
+  if (m.meetSt === 3) return 'confirm';
   return 'select';
 }
 
@@ -279,7 +279,7 @@ function handleProgChange(id, value) {
     return;
   }
   pendingCancelId = null;
-  applyProgress(id, value === 'confirm' ? { meetYn: 'Y', cancelRs: '' } : { meetYn: 'N', cancelRs: '' });
+  applyProgress(id, value === 'confirm' ? { meetSt: 3, cancelRs: '' } : { meetSt: 1, cancelRs: '' });
 }
 
 function applyCancel(id) {
@@ -290,14 +290,14 @@ function applyCancel(id) {
     return;
   }
   pendingCancelId = null;
-  applyProgress(id, { meetYn: 'N', cancelRs: reason });
+  applyProgress(id, { meetSt: 2, cancelRs: reason });
 }
 
 async function applyProgress(id, patch) {
   const row = rows.find((m) => m.id === id);
   if (!row) return;
 
-  const prev = { meetYn: row.meetYn, cancelRs: row.cancelRs };
+  const prev = { meetSt: row.meetSt, cancelRs: row.cancelRs };
   await optimistic({
     apply: () => Object.assign(row, patch),
     revert: () => Object.assign(row, prev),
@@ -377,9 +377,8 @@ async function loadSchedule() {
 /* 첫만남(1회차)에 날짜가 잡혀 있어야 다음 만남을 추가할 수 있음.
    화면에 표시된 rows 는 조회 기간에 따라 필터링돼 있어(어제~2주 기본) 첫만남이 그 밖에 있으면
    빠질 수 있으므로, 조회 기간과 무관하게 해당 대상자의 만남 전체를 별도로 조회해서 판단한다. */
-async function hasDatedFirstMeeting(hireId) {
-  const list = await meetingApi.list(hireId);
-  return list.some((m) => m.seq === 1 && m.meetDt);
+function hasDatedFirstMeeting(meetings) {
+  return meetings.some((m) => m.seq === 1 && m.meetDt);
 }
 
 async function handleSave() {
@@ -393,18 +392,23 @@ async function handleSave() {
   }
 
   els.saveBtn.disabled = true;
-  let firstOk;
+  let personMeetings;
   try {
-    firstOk = await hasDatedFirstMeeting(hireId);
+    personMeetings = await meetingApi.list(hireId);
   } catch (err) {
     els.error.textContent = `대상자 만남 확인 실패: ${err.message}`;
     els.error.classList.add('show');
     els.saveBtn.disabled = false;
     return;
   }
-  if (!firstOk) {
+  if (!hasDatedFirstMeeting(personMeetings)) {
     els.error.textContent = '첫만남 일정이 아직 없는 대상자입니다. 수정이 필요하면 아래 표에서 첫만남 일정의 날짜를 먼저 입력해 주세요.';
     els.error.classList.add('show');
+    els.saveBtn.disabled = false;
+    return;
+  }
+  if (personMeetings.some((m) => m.meetDt === meetDt)
+      && !confirm(`${meetDt} 에 이미 만남일정이 등록되어 있습니다. 정말 등록하시겠습니까?`)) {
     els.saveBtn.disabled = false;
     return;
   }

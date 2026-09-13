@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS CHOIMEETSCHEDULE (
     FEEDBACKYN CHAR(1)      NOT NULL DEFAULT 'N',     -- 피드백 여부
     MEETCN     VARCHAR(200),                          -- 만남 시간·장소
     GOAL       VARCHAR(200),                          -- 목표
-    MEETYN     CHAR(1)      NOT NULL DEFAULT 'N',     -- 만남 여부
+    MEETST     TINYINT      NOT NULL DEFAULT 1,       -- 진행여부: 1=선택(대기중) 2=취소 3=만남
     CANCELRS   VARCHAR(200),                          -- 취소 사유
     DEL_YN     CHAR(1)      NOT NULL DEFAULT 'N',     -- 숨김(물리삭제 대신)
     REG_DT     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,               -- 생성 시점
