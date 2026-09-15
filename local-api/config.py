@@ -25,6 +25,12 @@ OFFICE_PASSWORD = os.environ.get('OFFICE_PASSWORD', 'choi3')
 SESSION_TTL     = int(os.environ.get('SESSION_TTL', '1800'))   # 세션 유효시간(초). 1800 = 30분
 SESSION_SECRET  = os.environ.get('SESSION_SECRET', 'choi3-office::' + OFFICE_PASSWORD)
 
+# ── /reports(7Ius67Cp) 전용 비밀번호 인증 — 본프로젝트 로그인과 완전히 분리된
+#    별도 토큰 체계(권한 최소화: 이 비밀번호로는 /reports/* 외 접근 불가). ──────
+REPORT_PASSWORD = os.environ.get('REPORT_PASSWORD', 'SIM_KEY')
+REPORT_SESSION_SECRET = os.environ.get('REPORT_SESSION_SECRET', 'choi3-report::' + REPORT_PASSWORD)
+REPORT_SESSION_TTL = int(os.environ.get('REPORT_SESSION_TTL', '600'))  # 7Ius67Cp 로그인 유효시간(초): 10분
+
 
 # ── DB 접속정보 (charset/cursorclass 등 pymysql 옵션은 db.py 에서 합친다) ──────
 DB = dict(

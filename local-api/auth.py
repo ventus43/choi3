@@ -9,10 +9,18 @@
 from flask import Blueprint, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from config import OFFICE_PASSWORD, SESSION_SECRET, SESSION_TTL
+from config import OFFICE_PASSWORD, REPORT_SESSION_SECRET, REPORT_SESSION_TTL, SESSION_SECRET, SESSION_TTL
 
 _signer = URLSafeTimedSerializer(SESSION_SECRET, salt='office-session')
 PUBLIC_PATHS = {'/auth/login'}
+# /reports/* 는 본프로젝트 토큰이 아니라 별도의 report 토큰으로 인증한다 —
+# 전역 가드는 건드리지 않고 통과시키고, 실제 검사는 routes/reports.py 의 블루프린트 전용 가드가 한다.
+EXEMPT_PREFIXES = ('/reports',)
+
+# /reports(7Ius67Cp) 전용 서명키 — 본프로젝트(_signer)와 salt/secret 이 달라
+# 토큰이 서로 호환되지 않는다(한쪽 토큰으로 다른 쪽 API 호출 시 401).
+_report_signer = URLSafeTimedSerializer(REPORT_SESSION_SECRET, salt='report-session')
+REPORT_PUBLIC_PATHS = {'/reports/auth/login'}
 
 
 def issue_token():
@@ -27,13 +35,38 @@ def token_valid(token):
         return False
 
 
+def issue_report_token():
+    return _report_signer.dumps({'ok': True})
+
+
+def report_token_valid(token):
+    try:
+        _report_signer.loads(token, max_age=REPORT_SESSION_TTL)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+
+
 def require_auth():
-    """app.before_request 로 등록 — 공개 경로가 아니면 유효 토큰을 요구."""
+    """app.before_request 로 등록 — 공개 경로/별도 인증 영역(EXEMPT_PREFIXES)이 아니면 유효 토큰을 요구."""
     if request.method == 'OPTIONS':
         return None
     if request.path in PUBLIC_PATHS:
         return None
+    if request.path.startswith(EXEMPT_PREFIXES):
+        return None
     if not token_valid(request.headers.get('X-Office-Auth', '')):
+        return jsonify({'message': '세션이 만료되었습니다. 다시 로그인해 주세요.'}), 401
+    return None
+
+
+def require_report_auth():
+    """reports_bp.before_request 로 등록 — /reports/* 전용 별도 토큰 검사."""
+    if request.method == 'OPTIONS':
+        return None
+    if request.path in REPORT_PUBLIC_PATHS:
+        return None
+    if not report_token_valid(request.headers.get('X-Report-Auth', '')):
         return jsonify({'message': '세션이 만료되었습니다. 다시 로그인해 주세요.'}), 401
     return None
 

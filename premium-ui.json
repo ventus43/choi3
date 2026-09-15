@@ -1,0 +1,14 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["outputs"],
+  "locale": "ko-KR",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Select/Listbox", "Date", "Form", "Toast"],
+  "ownership": {
+    "Select/Listbox": "native",
+    "Date": "native",
+    "Form": "native",
+    "Toast": "app-owned"
+  }
+}
+

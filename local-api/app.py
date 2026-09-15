@@ -5,6 +5,7 @@ from auth import auth_bp, require_auth
 from routes.meetings import meetings_bp
 from routes.members import members_bp
 from routes.outreach import outreach_bp
+from routes.reports import reports_bp
 from telegram import screenshot_bp
 
 
@@ -18,6 +19,7 @@ def create_app():
     app.register_blueprint(members_bp)
     app.register_blueprint(outreach_bp)
     app.register_blueprint(meetings_bp)
+    app.register_blueprint(reports_bp)
     app.register_blueprint(screenshot_bp)
 
     return app
