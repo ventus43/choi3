@@ -28,6 +28,8 @@
 
 *{ box-sizing: border-box; }
 html,body{ margin:0; padding:0; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{ outline:3px solid rgba(21,112,58,.35); outline-offset:2px; }
+button:disabled{ cursor:not-allowed; opacity:.62; }
 body{
   background: var(--bg);
   color: var(--ink);

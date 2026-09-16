@@ -13,6 +13,7 @@
 }
 .auth-title{ font-size:18px; font-weight:800; margin-bottom:6px; }
 .auth-sub{ font-size:12.5px; color:var(--ink-soft); margin:0 0 16px; }
+.auth-label{ text-align:left; }
 #auth-pw{
   width:100%; font-family:inherit; font-size:14px; padding:10px 12px;
   border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--ink);

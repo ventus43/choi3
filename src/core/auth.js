@@ -76,8 +76,9 @@ function renderGate() {
     <div class="auth-box">
       <div class="auth-title">관리시스템</div>
       <p class="auth-sub">비밀번호를 입력해 주세요.</p>
-      <input type="password" id="auth-pw" placeholder="비밀번호" autocomplete="off">
-      <div class="auth-error" id="auth-error">비밀번호가 올바르지 않습니다.</div>
+      <label class="auth-label" for="auth-pw">비밀번호</label>
+      <input type="password" id="auth-pw" placeholder="비밀번호" autocomplete="current-password" aria-describedby="auth-error">
+      <div class="auth-error" id="auth-error" role="alert">비밀번호가 올바르지 않습니다.</div>
       <button type="button" id="auth-submit" class="btn btn-primary">확인</button>
     </div>`;
   document.body.appendChild(overlay);
@@ -95,14 +96,18 @@ function renderGate() {
 
   const tryLogin = async () => {
     const pw = input.value;
-    if (!pw) return;
+    if (!pw) { showError('비밀번호를 입력해 주세요.'); return; }
     submit.disabled = true;
+    submit.textContent = '확인 중…';
+    submit.setAttribute('aria-busy', 'true');
     try {
       await login(pw);
       location.reload();
     } catch (err) {
       showError(err.message || '로그인에 실패했습니다.');
       submit.disabled = false;
+      submit.textContent = '확인';
+      submit.removeAttribute('aria-busy');
     }
   };
 

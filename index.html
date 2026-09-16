@@ -24,15 +24,15 @@
   </div>
 </div>
 
-<div class="tabbar">
-  <button class="tab active" data-tab="zonestat">섭외자 리스트 <span class="count" id="count-zonestat">0</span></button>
-  <button class="tab" data-tab="meetsched">만남 일정 <span class="count" id="count-meetsched">0</span></button>
-  <button class="tab" data-tab="check">TM 현황 <span class="count" id="count-check">0</span></button>
+<div class="tabbar" role="tablist" aria-label="관리 화면">
+  <button type="button" class="tab active" data-tab="zonestat" id="tab-zonestat" role="tab" aria-selected="true" aria-controls="panel-zonestat">섭외자 리스트 <span class="count" id="count-zonestat">0</span></button>
+  <button type="button" class="tab" data-tab="meetsched" id="tab-meetsched" role="tab" aria-selected="false" aria-controls="panel-meetsched">만남 일정 <span class="count" id="count-meetsched">0</span></button>
+  <button type="button" class="tab" data-tab="check" id="tab-check" role="tab" aria-selected="false" aria-controls="panel-check">TM 현황 <span class="count" id="count-check">0</span></button>
   <div class="tabbar-edit">
     <span class="tabbar-edit-label">등록 · 수정</span>
-    <button class="tab tab-edit" data-tab="schedule">일정 목록 <span class="count" id="count-schedule">0</span></button>
-    <button class="tab tab-edit" data-tab="outreach">창출 목록 <span class="count" id="count-outreach">0</span></button>
-    <button class="tab tab-edit" data-tab="member">구역 관리 <span class="count" id="count-member">0</span></button>
+    <button type="button" class="tab tab-edit" data-tab="schedule" id="tab-schedule" role="tab" aria-selected="false" aria-controls="panel-schedule">일정 목록 <span class="count" id="count-schedule">0</span></button>
+    <button type="button" class="tab tab-edit" data-tab="outreach" id="tab-outreach" role="tab" aria-selected="false" aria-controls="panel-outreach">창출 목록 <span class="count" id="count-outreach">0</span></button>
+    <button type="button" class="tab tab-edit" data-tab="member" id="tab-member" role="tab" aria-selected="false" aria-controls="panel-member">구역 관리 <span class="count" id="count-member">0</span></button>
   </div>
 </div>
 

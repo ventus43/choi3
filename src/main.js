@@ -25,15 +25,19 @@ const RELOAD = Object.fromEntries(TABS.filter((t) => t.reload).map((t) => [t.nam
 function mountPanels() {
   const stage = document.querySelector('.stage');
   stage.innerHTML = TABS.map(({ name, template }, i) =>
-    `<section class="panel" id="panel-${name}"${i === 0 ? '' : ' hidden'}>${template}</section>`,
+    `<section class="panel" id="panel-${name}" role="tabpanel" aria-labelledby="tab-${name}" tabindex="0"${i === 0 ? '' : ' hidden'}>${template}</section>`,
   ).join('');
 }
 
 function setupTabs() {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+  const tabs = [...document.querySelectorAll('.tab')];
+  const activateTab = (tab) => {
+      tabs.forEach((t) => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
       tab.classList.add('active');
+      tab.setAttribute('aria-selected', 'true');
       TABS.forEach(({ name }) => {
         document.getElementById(`panel-${name}`).hidden = name !== tab.dataset.tab;
       });
@@ -43,6 +47,19 @@ function setupTabs() {
         tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
       RELOAD[tab.dataset.tab]?.();
+  };
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activateTab(tab));
+    tab.addEventListener('keydown', (event) => {
+      const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+      let target = null;
+      if (direction) target = tabs[(index + direction + tabs.length) % tabs.length];
+      if (event.key === 'Home') target = tabs[0];
+      if (event.key === 'End') target = tabs[tabs.length - 1];
+      if (!target) return;
+      event.preventDefault();
+      target.focus();
+      activateTab(target);
     });
   });
 }
