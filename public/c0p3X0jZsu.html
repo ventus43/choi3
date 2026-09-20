@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사명 체크리스트 조회</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#1c1e21; --sub:#6b7280;
+    --line:#e5e7eb; --accent:#3b5bdb; --accent-soft:#edf1ff;
+    --good:#2f9e44; --warn:#e8590c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:16px; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  h1{font-size:19px; margin:0 0 4px;}
+  .sub{color:var(--sub); font-size:13px; margin-bottom:16px;}
+
+  .input-card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:14px; margin-bottom:18px;
+  }
+  .input-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  input[type=text]{
+    flex:1 1 160px; min-width:0; border:1px solid var(--line); border-radius:8px;
+    padding:9px 10px; font-size:14px; font-family:inherit;
+  }
+  .btn{
+    background:var(--accent); color:#fff; border:none; padding:9px 14px;
+    border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .btn.ghost{background:none; color:var(--sub); border:1px solid var(--line);}
+
+  #searchError{color:var(--warn); font-size:12.5px; margin-top:8px; display:none;}
+
+  .candidate-list{display:flex; flex-direction:column; gap:8px;}
+  .candidate-btn{
+    text-align:left; background:var(--accent-soft); color:var(--accent); border:none;
+    border-radius:8px; padding:10px 12px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+
+  .result-card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px;
+  }
+  .result-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;}
+  .result-head strong{font-size:16px;}
+  .result-head span{font-size:12.5px; color:var(--sub);}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th,td{border:1px solid var(--line); padding:7px 6px; text-align:center;}
+  th{background:#fafbfc; font-weight:600; color:var(--sub);}
+  td.item-name{text-align:left; font-weight:600; color:var(--ink); white-space:nowrap;}
+  .check-yes{color:var(--good); font-weight:800;}
+  .loading, .note{color:var(--sub); font-size:13px; padding:10px 0;}
+</style>
+</head>
+<body>
+
+<h1>사명 체크리스트 조회</h1>
+<p class="sub">이름을 입력하면 이번 주 본인 체크 현황을 볼 수 있습니다. 체크는 관리자만 할 수 있고, 여기서는 조회만 가능합니다.</p>
+
+<div class="input-card">
+  <div class="input-row">
+    <input type="text" id="nameInput" placeholder="이름 입력" maxlength="20" autocomplete="off">
+    <button type="button" class="btn" id="searchBtn">조회</button>
+  </div>
+  <div id="searchError"></div>
+</div>
+
+<div id="resultArea"></div>
+
+<script>
+const API_BASE = '/api';
+
+async function apiGet(path){
+  const res = await fetch(`${API_BASE}${path}`);
+  if(!res.ok){
+    let message = `조회 실패 (${res.status})`;
+    try{ const b = await res.json(); if(b?.message) message = b.message; }catch(_){}
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+const DOWS = [1,2,3,4,5,6,7];
+const DOW_LABEL = {1:'월',2:'화',3:'수',4:'목',5:'금',6:'토',7:'일'};
+
+const nameInput = document.getElementById('nameInput');
+const searchBtn = document.getElementById('searchBtn');
+const errorEl = document.getElementById('searchError');
+const resultArea = document.getElementById('resultArea');
+
+function showError(msg){
+  errorEl.textContent = msg;
+  errorEl.style.display = msg ? 'block' : 'none';
+}
+
+function renderCandidates(list){
+  resultArea.innerHTML = `
+    <div class="input-card">
+      <div class="sub" style="margin-bottom:10px">동명이인이 있습니다. 본인 구역을 선택해 주세요.</div>
+      <div class="candidate-list">
+        ${list.map(c => `<button type="button" class="candidate-btn" data-id="${c.NTT_ID}">구역 ${c.GU ?? '-'} · ${c.NAME}</button>`).join('')}
+      </div>
+    </div>`;
+  resultArea.querySelectorAll('[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => loadDetail(Number(btn.dataset.id)));
+  });
+}
+
+function renderDetail(data){
+  const { member, items, state } = data;
+  const checkedSet = new Set(state.filter(s => s.CHECKED === 'Y').map(s => `${s.DOW}|${s.ITEM_SEQ}`));
+  const labelOf = seq => {
+    const found = items.find(it => it.SEQ === seq);
+    return (found && found.LABEL) ? found.LABEL : `항목 ${seq}`;
+  };
+  resultArea.innerHTML = `
+    <div class="result-card">
+      <div class="result-head">
+        <strong>${member.NAME}</strong>
+        <span>구역 ${member.GU ?? '-'} · 이번 주 현황</span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>항목</th>${DOWS.map(d => `<th>${DOW_LABEL[d]}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${[1,2,3,4,5].map(seq => `
+            <tr>
+              <td class="item-name">${labelOf(seq)}</td>
+              ${DOWS.map(d => `<td>${checkedSet.has(`${d}|${seq}`) ? '<span class="check-yes">✓</span>' : ''}</td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function loadDetail(nttId){
+  resultArea.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try{
+    const data = await apiGet(`/mychecklist/${nttId}`);
+    renderDetail(data);
+  }catch(e){
+    resultArea.innerHTML = `<div class="note">${e.message}</div>`;
+  }
+}
+
+async function runSearch(){
+  const name = nameInput.value.trim();
+  showError('');
+  resultArea.innerHTML = '';
+  if(!name){
+    showError('이름을 입력해 주세요.');
+    return;
+  }
+  searchBtn.disabled = true;
+  resultArea.innerHTML = '<div class="loading">조회 중…</div>';
+  try{
+    const list = await apiGet(`/mychecklist/search?name=${encodeURIComponent(name)}`);
+    if(list.length === 0){
+      resultArea.innerHTML = '<div class="note">사명자 명단에서 이름을 찾을 수 없습니다.</div>';
+    }else if(list.length === 1){
+      await loadDetail(list[0].NTT_ID);
+    }else{
+      renderCandidates(list);
+    }
+  }catch(e){
+    resultArea.innerHTML = '';
+    showError(e.message);
+  }finally{
+    searchBtn.disabled = false;
+  }
+}
+
+searchBtn.addEventListener('click', runSearch);
+nameInput.addEventListener('keydown', e => { if(e.key === 'Enter') runSearch(); });
+</script>
+
+</body>
+</html>

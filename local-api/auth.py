@@ -15,7 +15,8 @@ _signer = URLSafeTimedSerializer(SESSION_SECRET, salt='office-session')
 PUBLIC_PATHS = {'/auth/login'}
 # /reports/* 는 본프로젝트 토큰이 아니라 별도의 report 토큰으로 인증한다 —
 # 전역 가드는 건드리지 않고 통과시키고, 실제 검사는 routes/reports.py 의 블루프린트 전용 가드가 한다.
-EXEMPT_PREFIXES = ('/reports',)
+# /mychecklist/* 는 사명자 개인이 이름만 입력해 조회하는 공개 읽기전용 라우트라 인증 자체가 없다.
+EXEMPT_PREFIXES = ('/reports', '/mychecklist')
 
 # /reports(7Ius67Cp) 전용 서명키 — 본프로젝트(_signer)와 salt/secret 이 달라
 # 토큰이 서로 호환되지 않는다(한쪽 토큰으로 다른 쪽 API 호출 시 401).

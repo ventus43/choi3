@@ -9,6 +9,7 @@ import * as dashboard from './tabs/dashboard.js';
 import * as schedule from './tabs/schedule.js';
 import * as outreach from './tabs/outreach.js';
 import * as member from './tabs/member.js';
+import * as checklist from './tabs/checklist.js';
 
 /* 탭 순서 = 탭바 버튼 순서 = 패널 주입 순서. 첫 항목이 처음 열리는 탭. */
 const TABS = [
@@ -19,6 +20,7 @@ const TABS = [
   { name: 'schedule',  template: schedule.TEMPLATE, init: schedule.initScheduleTab,  reload: schedule.reloadSchedule },
   { name: 'outreach',  template: outreach.TEMPLATE, init: outreach.initOutreachTab },
   { name: 'member',    template: member.TEMPLATE,   init: member.initMemberTab },
+  { name: 'checklist', template: checklist.TEMPLATE, init: checklist.initChecklistTab },
 ];
 
 const RELOAD = Object.fromEntries(TABS.filter((t) => t.reload).map((t) => [t.name, t.reload]));

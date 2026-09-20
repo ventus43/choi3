@@ -64,3 +64,12 @@ export const memberApi = {
   update: (id, patch) => request(`/member/${id}`, { method: 'PUT',    body: JSON.stringify(patch) }),
   remove: (id)        => request(`/member/${id}`, { method: 'DELETE' }),
 };
+
+export const checklistApi = {
+  items:     ()      => request('/checklist/items'),
+  saveItems: (items) => request('/checklist/items', { method: 'PUT', body: JSON.stringify({ items }) }),
+  members:   ()      => request('/checklist/members'),
+  state:     ()      => request('/checklist/state'),
+  toggle:    (input) => request('/checklist/state', { method: 'PUT', body: JSON.stringify(input) }),
+  closeWeek: ()      => request('/checklist/close-week', { method: 'POST' }),
+};
