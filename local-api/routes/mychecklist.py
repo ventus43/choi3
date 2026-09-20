@@ -243,7 +243,7 @@ def mychecklist_admin_board():
             })
         m['days'] = days
 
-    return jsonify({'totalItems': total_items, 'members': members})
+    return jsonify({'totalItems': total_items, 'members': members, 'today': _today_dow()})
 
 
 @mychecklist_bp.route('/mychecklist/admin/stamp', methods=['POST'])

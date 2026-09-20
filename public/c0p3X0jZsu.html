@@ -64,6 +64,15 @@
   .item-row{display:flex; gap:6px; align-items:center;}
   .item-row input[type=text]{flex:1;}
 
+  .overview-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
+  .stat-box{background:var(--accent-soft); border-radius:10px; padding:12px; text-align:center;}
+  .stat-box .n{font-size:24px; font-weight:800; color:var(--accent); line-height:1.1;}
+  .stat-box .t{font-size:11.5px; color:var(--sub); margin-top:3px;}
+  .zone-overview{display:flex; flex-wrap:wrap; gap:8px;}
+  .zone-chip{padding:6px 10px; border-radius:8px; background:#f3f4f6; font-size:12px; font-weight:700; color:var(--sub);}
+  .zone-chip.partial{background:#fff4e0; color:#b06a00;}
+  .zone-chip.full{background:#e6f7ea; color:var(--good);}
+
   .zone-group{margin-bottom:16px;}
   .zone-title{font-weight:700; font-size:13.5px; margin-bottom:8px; color:var(--accent);}
   .board-cell{display:flex; flex-direction:column; align-items:center; gap:3px;}
@@ -125,6 +134,8 @@
     <h1 style="margin:0">체크리스트 관리자</h1>
     <button type="button" class="btn ghost sm" id="adminLogoutBtn">로그아웃</button>
   </div>
+
+  <div class="card" id="adminOverview"></div>
 
   <div class="card">
     <h2>체크 항목</h2>
@@ -435,7 +446,42 @@ document.getElementById('adminSavePwBtn').addEventListener('click', async () => 
   }catch(e){ showErr(msg, e.message); }
 });
 
+function renderAdminOverview(data){
+  const overview = document.getElementById('adminOverview');
+  const { members, today } = data;
+  const totalMembers = members.length;
+  let completedToday = 0;
+  let stampedToday = 0;
+  const zoneMap = new Map(); // gu -> {completed, total}
+
+  members.forEach(m => {
+    const day = m.days.find(d => d.DOW === today);
+    if(!day) return;
+    const zone = zoneMap.get(m.GU) || { completed: 0, total: 0 };
+    zone.total += 1;
+    const done = day.total > 0 && day.checked === day.total;
+    if(done){ completedToday++; zone.completed++; }
+    if(day.stamped) stampedToday++;
+    zoneMap.set(m.GU, zone);
+  });
+
+  const zoneChips = [...zoneMap.entries()].map(([gu, z]) => {
+    const cls = z.completed === z.total ? 'full' : (z.completed > 0 ? 'partial' : '');
+    return `<div class="zone-chip ${cls}">구역 ${gu ?? '-'} · ${z.completed}/${z.total}</div>`;
+  }).join('');
+
+  overview.innerHTML = `
+    <h2>오늘 현황 (${DOW_LABEL[today]}요일)</h2>
+    <div class="overview-stats">
+      <div class="stat-box"><div class="n">${totalMembers}</div><div class="t">전체 사명자</div></div>
+      <div class="stat-box"><div class="n">${completedToday}</div><div class="t">오늘 전항목 완료</div></div>
+      <div class="stat-box"><div class="n">${stampedToday}</div><div class="t">오늘 스탬프</div></div>
+    </div>
+    <div class="zone-overview">${zoneChips || '<span class="note">구역 정보가 없습니다.</span>'}</div>`;
+}
+
 function renderAdminBoard(data){
+  renderAdminOverview(data);
   const board = document.getElementById('adminBoard');
   const { members } = data;
   if(members.length === 0){
