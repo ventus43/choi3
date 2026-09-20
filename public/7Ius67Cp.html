@@ -1135,7 +1135,7 @@ async function renderTodaySummary(){
   attendance.forEach(a=>totals[a.status]++);
 
   const total = attendance.length;
-  const visitRate = total > 0 ? Math.round(totals['QR인증'] / total * 100) : 0;
+  const visitRate = total > 0 ? (totals['QR인증'] / total * 100).toFixed(1) : '0.0';
   rateBoxEl.innerHTML = `<div class="box"><div class="t">출석률</div><div class="n">${visitRate}%</div></div>`;
 
   boxEl.innerHTML = Object.entries(totals).map(([k,v])=>
