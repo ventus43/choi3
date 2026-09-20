@@ -9,7 +9,15 @@
 from flask import Blueprint, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from config import OFFICE_PASSWORD, REPORT_SESSION_SECRET, REPORT_SESSION_TTL, SESSION_SECRET, SESSION_TTL
+from config import (
+    CHECKLIST_SESSION_SECRET,
+    CHECKLIST_SESSION_TTL,
+    OFFICE_PASSWORD,
+    REPORT_SESSION_SECRET,
+    REPORT_SESSION_TTL,
+    SESSION_SECRET,
+    SESSION_TTL,
+)
 
 _signer = URLSafeTimedSerializer(SESSION_SECRET, salt='office-session')
 PUBLIC_PATHS = {'/auth/login'}
@@ -43,6 +51,23 @@ def issue_report_token():
 def report_token_valid(token):
     try:
         _report_signer.loads(token, max_age=REPORT_SESSION_TTL)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+
+
+# /mychecklist(c0p3X0jZsu) 관리자 전용 서명키 — 비밀번호 자체는 DB(CHOICHECKLIST_ADMIN)에
+# 저장해 관리자가 바꿀 수 있고, 여기 시크릿은 로그인 성공 후 발급하는 토큰 서명에만 쓴다.
+_checklist_signer = URLSafeTimedSerializer(CHECKLIST_SESSION_SECRET, salt='checklist-session')
+
+
+def issue_checklist_token():
+    return _checklist_signer.dumps({'ok': True})
+
+
+def checklist_token_valid(token):
+    try:
+        _checklist_signer.loads(token, max_age=CHECKLIST_SESSION_TTL)
         return True
     except (BadSignature, SignatureExpired):
         return False

@@ -3,37 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>체크리스트 조회</title>
+<title>체크리스트</title>
 <style>
   :root{
     --bg:#f4f5f7; --card:#ffffff; --ink:#1c1e21; --sub:#6b7280;
     --line:#e5e7eb; --accent:#3b5bdb; --accent-soft:#edf1ff;
-    --good:#2f9e44; --warn:#e8590c;
+    --good:#2f9e44; --warn:#e8590c; --stamp:#f2ae00;
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; padding:16px; background:var(--bg); color:var(--ink);
+    margin:0; padding:16px 16px 90px; background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   h1{font-size:19px; margin:0 0 4px;}
+  h2{font-size:15px; margin:0 0 10px;}
   .sub{color:var(--sub); font-size:13px; margin-bottom:16px;}
+  [hidden]{display:none !important;}
 
-  .input-card{
+  .card{
     background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:14px; margin-bottom:18px;
+    padding:14px; margin-bottom:16px;
   }
-  .input-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-  input[type=text]{
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  input[type=text], input[type=password]{
     flex:1 1 160px; min-width:0; border:1px solid var(--line); border-radius:8px;
     padding:9px 10px; font-size:14px; font-family:inherit;
   }
   .btn{
     background:var(--accent); color:#fff; border:none; padding:9px 14px;
-    border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+    border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
   }
   .btn.ghost{background:none; color:var(--sub); border:1px solid var(--line);}
+  .btn.danger{background:var(--warn);}
+  .btn.sm{padding:6px 10px; font-size:12px;}
+  .btn:disabled{opacity:.55; cursor:not-allowed;}
 
-  #searchError{color:var(--warn); font-size:12.5px; margin-top:8px; display:none;}
+  .error-text{color:var(--warn); font-size:12.5px; margin-top:8px; display:none;}
+  .error-text.show{display:block;}
 
   .candidate-list{display:flex; flex-direction:column; gap:8px;}
   .candidate-btn{
@@ -41,142 +47,487 @@
     border-radius:8px; padding:10px 12px; font-size:13.5px; font-weight:600; cursor:pointer;
   }
 
-  .result-card{
-    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px;
-  }
-  .result-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;}
-  .result-head strong{font-size:16px;}
-  .result-head span{font-size:12.5px; color:var(--sub);}
+  .head-row{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; gap:8px; flex-wrap:wrap;}
+  .head-row strong{font-size:16px;}
+  .head-row span{font-size:12.5px; color:var(--sub);}
 
   table{width:100%; border-collapse:collapse; font-size:12.5px;}
   th,td{border:1px solid var(--line); padding:7px 6px; text-align:center;}
   th{background:#fafbfc; font-weight:600; color:var(--sub);}
+  th.today, td.today{background:var(--accent-soft);}
   td.item-name{text-align:left; font-weight:600; color:var(--ink); white-space:nowrap;}
-  .check-yes{color:var(--good); font-weight:800;}
+  .chk{width:18px; height:18px; cursor:pointer; accent-color:var(--accent);}
+  .stamp-icon{color:var(--stamp); font-size:14px;}
   .loading, .note{color:var(--sub); font-size:13px; padding:10px 0;}
+
+  .item-list{display:flex; flex-direction:column; gap:6px; margin-bottom:12px;}
+  .item-row{display:flex; gap:6px; align-items:center;}
+  .item-row input[type=text]{flex:1;}
+
+  .zone-group{margin-bottom:16px;}
+  .zone-title{font-weight:700; font-size:13.5px; margin-bottom:8px; color:var(--accent);}
+  .board-cell{display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .board-cell .cnt{font-size:11px; color:var(--sub);}
+  .board-cell button{
+    font-size:10.5px; padding:3px 6px; border-radius:5px; border:1px solid var(--line);
+    background:#fff; cursor:pointer;
+  }
+  .board-cell button.eligible{border-color:var(--stamp); color:var(--stamp); font-weight:700;}
+  .board-cell button.stamped{background:var(--stamp); border-color:var(--stamp); color:#fff;}
+  .board-cell button:disabled{cursor:not-allowed; opacity:.5;}
+
+  .fab{
+    position:fixed; right:16px; bottom:16px; z-index:20;
+    background:var(--accent); color:#fff; border:none; border-radius:999px;
+    padding:12px 18px; font-size:13px; font-weight:700; box-shadow:0 6px 18px rgba(59,91,219,.35);
+    cursor:pointer;
+  }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(28,30,33,.4); display:flex;
+    align-items:flex-end; justify-content:center; z-index:30;
+  }
+  .modal{
+    background:var(--card); border-radius:16px 16px 0 0; padding:16px; width:100%; max-width:480px;
+    max-height:80vh; overflow-y:auto;
+  }
+  .modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .modal-head button{background:none; border:none; font-size:18px; color:var(--sub); cursor:pointer;}
 </style>
 </head>
 <body>
 
-<h1>사명 체크리스트 조회</h1>
-<p class="sub">이름을 입력하면 이번 주 본인 체크 현황을 볼 수 있습니다. 체크는 관리자만 할 수 있고, 여기서는 조회만 가능합니다.</p>
-
-<div class="input-card">
-  <div class="input-row">
-    <input type="text" id="nameInput" placeholder="이름 입력" maxlength="20" autocomplete="off">
-    <button type="button" class="btn" id="searchBtn">조회</button>
+<div id="landing">
+  <h1>체크리스트</h1>
+  <p class="sub">이름을 입력하면 이번 주 체크리스트를 확인·체크할 수 있습니다.</p>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="loginInput" placeholder="이름 입력" maxlength="30" autocomplete="off">
+      <button type="button" class="btn" id="loginBtn">확인</button>
+    </div>
+    <div class="error-text" id="loginError"></div>
   </div>
-  <div id="searchError"></div>
+  <div id="candidateArea"></div>
 </div>
 
-<div id="resultArea"></div>
+<div id="userView" hidden>
+  <div class="card">
+    <div class="head-row">
+      <div><strong id="userName"></strong> <span id="userZone"></span></div>
+      <button type="button" class="btn ghost sm" id="userBackBtn">다른 이름으로</button>
+    </div>
+    <div id="userTableWrap"></div>
+  </div>
+</div>
+
+<div id="adminView" hidden>
+  <div class="head-row">
+    <h1 style="margin:0">체크리스트 관리자</h1>
+    <button type="button" class="btn ghost sm" id="adminLogoutBtn">로그아웃</button>
+  </div>
+
+  <div class="card">
+    <h2>체크 항목</h2>
+    <div class="item-list" id="adminItemList"></div>
+    <div class="row">
+      <input type="text" id="adminNewItemInput" placeholder="새 항목 이름" maxlength="50">
+      <button type="button" class="btn sm" id="adminAddItemBtn">항목 추가</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>관리자 비밀번호 변경</h2>
+    <div class="row">
+      <input type="password" id="adminNewPwInput" placeholder="새 비밀번호" autocomplete="new-password">
+      <button type="button" class="btn sm" id="adminSavePwBtn">변경</button>
+    </div>
+    <div class="error-text" id="adminPwMsg"></div>
+  </div>
+
+  <div class="card">
+    <div class="head-row">
+      <h2 style="margin:0">구역별 현황</h2>
+      <button type="button" class="btn danger sm" id="adminCloseWeekBtn">이번 주 마감</button>
+    </div>
+    <div id="adminBoard"></div>
+  </div>
+</div>
+
+<button type="button" class="fab" id="historyFab" hidden>이전주차요약</button>
 
 <script>
 const API_BASE = '/api';
-
-async function apiGet(path){
-  const res = await fetch(`${API_BASE}${path}`);
-  if(!res.ok){
-    let message = `조회 실패 (${res.status})`;
-    try{ const b = await res.json(); if(b?.message) message = b.message; }catch(_){}
-    throw new Error(message);
-  }
-  return res.json();
-}
-
 const DOWS = [1,2,3,4,5,6,7];
 const DOW_LABEL = {1:'월',2:'화',3:'수',4:'목',5:'금',6:'토',7:'일'};
+const TOKEN_KEY = 'checklist_admin_token';
 
-const nameInput = document.getElementById('nameInput');
-const searchBtn = document.getElementById('searchBtn');
-const errorEl = document.getElementById('searchError');
-const resultArea = document.getElementById('resultArea');
+async function apiCall(path, options = {}){
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+  if(!res.ok){
+    let message = `요청 실패 (${res.status})`;
+    try{ const b = await res.json(); if(b?.message) message = b.message; }catch(_){}
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+  if(res.status === 204) return null;
+  return res.json();
+}
+const apiGet = (path) => apiCall(path);
+const adminHeaders = () => ({ 'X-Checklist-Auth': localStorage.getItem(TOKEN_KEY) || '' });
 
-function showError(msg){
-  errorEl.textContent = msg;
-  errorEl.style.display = msg ? 'block' : 'none';
+// ── 공통 엘리먼트 ──
+const landing = document.getElementById('landing');
+const userView = document.getElementById('userView');
+const adminView = document.getElementById('adminView');
+const historyFab = document.getElementById('historyFab');
+
+const loginInput = document.getElementById('loginInput');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const candidateArea = document.getElementById('candidateArea');
+
+function showErr(el, msg){
+  el.textContent = msg;
+  el.classList.toggle('show', !!msg);
 }
 
-function renderCandidates(list){
-  resultArea.innerHTML = `
-    <div class="input-card">
-      <div class="sub" style="margin-bottom:10px">동명이인이 있습니다. 본인 구역을 선택해 주세요.</div>
-      <div class="candidate-list">
-        ${list.map(c => `<button type="button" class="candidate-btn" data-id="${c.NTT_ID}">구역 ${c.GU ?? '-'} · ${c.NAME}</button>`).join('')}
-      </div>
-    </div>`;
-  resultArea.querySelectorAll('[data-id]').forEach(btn => {
-    btn.addEventListener('click', () => loadDetail(Number(btn.dataset.id)));
+function showOnly(view){
+  landing.hidden = view !== 'landing';
+  userView.hidden = view !== 'user';
+  adminView.hidden = view !== 'admin';
+  historyFab.hidden = view !== 'user';
+}
+
+// ── 로그인(이름 또는 관리자 비밀번호) ──
+async function tryAdminLogin(password){
+  const data = await apiCall('/mychecklist/admin/login', { method:'POST', body: JSON.stringify({ password }) });
+  localStorage.setItem(TOKEN_KEY, data.token);
+  return true;
+}
+
+async function runLogin(){
+  const value = loginInput.value.trim();
+  showErr(loginError, '');
+  candidateArea.innerHTML = '';
+  if(!value){ showErr(loginError, '이름 또는 관리자 비밀번호를 입력해 주세요.'); return; }
+
+  loginBtn.disabled = true;
+  try{
+    try{
+      await tryAdminLogin(value);
+      showOnly('admin');
+      loadAdmin();
+      return;
+    }catch(e){
+      if(e.status !== 401) throw e;
+    }
+
+    const list = await apiGet(`/mychecklist/search?name=${encodeURIComponent(value)}`);
+    if(list.length === 0){
+      showErr(loginError, '이름을 찾을 수 없습니다.');
+    }else if(list.length === 1){
+      await loadUser(list[0].NTT_ID);
+    }else{
+      candidateArea.innerHTML = `
+        <div class="card">
+          <div class="sub" style="margin-bottom:10px">동명이인이 있습니다. 본인 구역을 선택해 주세요.</div>
+          <div class="candidate-list">
+            ${list.map(c => `<button type="button" class="candidate-btn" data-id="${c.NTT_ID}">구역 ${c.GU ?? '-'} · ${c.NAME}</button>`).join('')}
+          </div>
+        </div>`;
+      candidateArea.querySelectorAll('[data-id]').forEach(btn => {
+        btn.addEventListener('click', () => loadUser(Number(btn.dataset.id)));
+      });
+    }
+  }catch(e){
+    showErr(loginError, e.message);
+  }finally{
+    loginBtn.disabled = false;
+  }
+}
+loginBtn.addEventListener('click', runLogin);
+loginInput.addEventListener('keydown', e => { if(e.key === 'Enter') runLogin(); });
+
+// ── 사용자 화면 ──
+let userState = null; // { nttId, items, checkedSet, today }
+
+function renderUserTable(){
+  const { items, checkedSet, today } = userState;
+  const wrap = document.getElementById('userTableWrap');
+  if(items.length === 0){
+    wrap.innerHTML = '<div class="note">등록된 체크 항목이 없습니다. 관리자에게 문의해 주세요.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>항목</th>${DOWS.map(d => `<th class="${d===today?'today':''}">${DOW_LABEL[d]}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${items.map(it => `
+          <tr>
+            <td class="item-name">${it.LABEL}</td>
+            ${DOWS.map(d => `
+              <td class="${d===today?'today':''}">
+                <input type="checkbox" class="chk" data-dow="${d}" data-item="${it.ID}" ${checkedSet.has(`${d}|${it.ID}`) ? 'checked' : ''}>
+              </td>`).join('')}
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  wrap.querySelectorAll('.chk').forEach(box => {
+    box.addEventListener('change', () => toggleUserCheck(box));
   });
 }
 
-function renderDetail(data){
-  const { member, items, state } = data;
-  const checkedSet = new Set(state.filter(s => s.CHECKED === 'Y').map(s => `${s.DOW}|${s.ITEM_SEQ}`));
-  const labelOf = seq => {
-    const found = items.find(it => it.SEQ === seq);
-    return (found && found.LABEL) ? found.LABEL : `항목 ${seq}`;
-  };
-  resultArea.innerHTML = `
-    <div class="result-card">
-      <div class="result-head">
-        <strong>${member.NAME}</strong>
-        <span>구역 ${member.GU ?? '-'} · 이번 주 현황</span>
-      </div>
-      <table>
-        <thead>
-          <tr><th>항목</th>${DOWS.map(d => `<th>${DOW_LABEL[d]}</th>`).join('')}</tr>
-        </thead>
-        <tbody>
-          ${[1,2,3,4,5].map(seq => `
-            <tr>
-              <td class="item-name">${labelOf(seq)}</td>
-              ${DOWS.map(d => `<td>${checkedSet.has(`${d}|${seq}`) ? '<span class="check-yes">✓</span>' : ''}</td>`).join('')}
-            </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
+async function toggleUserCheck(box){
+  const dow = Number(box.dataset.dow);
+  const itemId = Number(box.dataset.item);
+  const key = `${dow}|${itemId}`;
+  const next = box.checked;
+  box.disabled = true;
+  try{
+    await apiCall(`/mychecklist/${userState.nttId}/check`, {
+      method:'PUT',
+      body: JSON.stringify({ DOW: dow, ITEM_ID: itemId, CHECKED: next }),
+    });
+    if(next) userState.checkedSet.add(key); else userState.checkedSet.delete(key);
+  }catch(e){
+    box.checked = !next;
+    alert(`저장 실패: ${e.message}`);
+  }finally{
+    box.disabled = false;
+  }
 }
 
-async function loadDetail(nttId){
-  resultArea.innerHTML = '<div class="loading">불러오는 중…</div>';
+async function loadUser(nttId){
+  showOnly('user');
+  document.getElementById('userTableWrap').innerHTML = '<div class="loading">불러오는 중…</div>';
   try{
     const data = await apiGet(`/mychecklist/${nttId}`);
-    renderDetail(data);
+    document.getElementById('userName').textContent = data.member.NAME;
+    document.getElementById('userZone').textContent = `구역 ${data.member.GU ?? '-'} · 이번 주`;
+    userState = {
+      nttId,
+      items: data.items,
+      checkedSet: new Set(data.state.filter(s => s.CHECKED === 'Y').map(s => `${s.DOW}|${s.ITEM_ID}`)),
+      today: data.today,
+    };
+    renderUserTable();
   }catch(e){
-    resultArea.innerHTML = `<div class="note">${e.message}</div>`;
+    document.getElementById('userTableWrap').innerHTML = `<div class="note">${e.message}</div>`;
   }
 }
 
-async function runSearch(){
-  const name = nameInput.value.trim();
-  showError('');
-  resultArea.innerHTML = '';
-  if(!name){
-    showError('이름을 입력해 주세요.');
+document.getElementById('userBackBtn').addEventListener('click', () => {
+  userState = null;
+  loginInput.value = '';
+  candidateArea.innerHTML = '';
+  showOnly('landing');
+});
+
+// ── 이전주차요약 ──
+historyFab.addEventListener('click', async () => {
+  if(!userState) return;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><strong>이전주차 요약</strong><button type="button" aria-label="닫기">×</button></div>
+      <div class="loading">불러오는 중…</div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  const close = () => backdrop.remove();
+  backdrop.addEventListener('click', e => { if(e.target === backdrop) close(); });
+  backdrop.querySelector('.modal-head button').addEventListener('click', close);
+
+  try{
+    const data = await apiGet(`/mychecklist/${userState.nttId}/history`);
+    const body = backdrop.querySelector('.modal');
+    if(!data.weekStart){
+      body.innerHTML = `<div class="modal-head"><strong>이전주차 요약</strong><button type="button" aria-label="닫기">×</button></div><div class="note">아직 마감된 이전 주차 기록이 없습니다.</div>`;
+    }else{
+      body.innerHTML = `
+        <div class="modal-head"><strong>이전주차 요약 (${data.weekStart} 주)</strong><button type="button" aria-label="닫기">×</button></div>
+        <table>
+          <thead><tr><th>요일</th><th>체크</th><th>스탬프</th></tr></thead>
+          <tbody>
+            ${data.days.map(d => `
+              <tr>
+                <td>${DOW_LABEL[d.DOW]}</td>
+                <td>${d.CHECKED_COUNT} / ${d.TOTAL_COUNT}</td>
+                <td>${d.STAMPED === 'Y' ? '<span class="stamp-icon">★</span>' : ''}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+    body.querySelector('.modal-head button').addEventListener('click', close);
+  }catch(e){
+    backdrop.querySelector('.modal').innerHTML = `<div class="note">${e.message}</div>`;
+  }
+});
+
+// ── 관리자 화면 ──
+async function adminGet(path){ return apiCall(path, { headers: adminHeaders() }); }
+async function adminCall(path, options){ return apiCall(path, { ...options, headers: { ...adminHeaders(), ...(options?.headers||{}) } }); }
+
+function renderAdminItems(items){
+  const list = document.getElementById('adminItemList');
+  if(items.length === 0){
+    list.innerHTML = '<div class="note">등록된 항목이 없습니다. 아래에서 추가해 주세요.</div>';
     return;
   }
-  searchBtn.disabled = true;
-  resultArea.innerHTML = '<div class="loading">조회 중…</div>';
+  list.innerHTML = items.map(it => `
+    <div class="item-row" data-id="${it.ID}">
+      <input type="text" value="${it.LABEL}" maxlength="50">
+      <button type="button" class="btn ghost sm" data-save>저장</button>
+      <button type="button" class="btn danger sm" data-del>삭제</button>
+    </div>`).join('');
+  list.querySelectorAll('[data-save]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.item-row');
+      const label = row.querySelector('input').value.trim();
+      if(!label) return;
+      try{
+        const items = await adminCall(`/mychecklist/admin/items/${row.dataset.id}`, { method:'PUT', body: JSON.stringify({ LABEL: label }) });
+        renderAdminItems(items);
+      }catch(e){ alert(`저장 실패: ${e.message}`); }
+    });
+  });
+  list.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.item-row');
+      if(!confirm('이 항목을 삭제하시겠습니까? 해당 항목의 체크 기록도 함께 삭제됩니다.')) return;
+      try{
+        const items = await adminCall(`/mychecklist/admin/items/${row.dataset.id}`, { method:'DELETE' });
+        renderAdminItems(items);
+        loadAdminBoard();
+      }catch(e){ alert(`삭제 실패: ${e.message}`); }
+    });
+  });
+}
+
+document.getElementById('adminAddItemBtn').addEventListener('click', async () => {
+  const input = document.getElementById('adminNewItemInput');
+  const label = input.value.trim();
+  if(!label) return;
   try{
-    const list = await apiGet(`/mychecklist/search?name=${encodeURIComponent(name)}`);
-    if(list.length === 0){
-      resultArea.innerHTML = '<div class="note">사명자 명단에서 이름을 찾을 수 없습니다.</div>';
-    }else if(list.length === 1){
-      await loadDetail(list[0].NTT_ID);
-    }else{
-      renderCandidates(list);
-    }
+    const items = await adminCall('/mychecklist/admin/items', { method:'POST', body: JSON.stringify({ LABEL: label }) });
+    input.value = '';
+    renderAdminItems(items);
+  }catch(e){ alert(`추가 실패: ${e.message}`); }
+});
+
+document.getElementById('adminSavePwBtn').addEventListener('click', async () => {
+  const input = document.getElementById('adminNewPwInput');
+  const msg = document.getElementById('adminPwMsg');
+  showErr(msg, '');
+  const password = input.value.trim();
+  if(!password){ showErr(msg, '새 비밀번호를 입력해 주세요.'); return; }
+  try{
+    await adminCall('/mychecklist/admin/password', { method:'PUT', body: JSON.stringify({ password }) });
+    input.value = '';
+    showErr(msg, '');
+    alert('비밀번호가 변경되었습니다.');
+  }catch(e){ showErr(msg, e.message); }
+});
+
+function renderAdminBoard(data){
+  const board = document.getElementById('adminBoard');
+  const { members } = data;
+  if(members.length === 0){
+    board.innerHTML = '<div class="note">사명(ISMISSION=Y) 인원이 없습니다.</div>';
+    return;
+  }
+  const zones = [...new Set(members.map(m => m.GU))];
+  board.innerHTML = zones.map(gu => {
+    const rows = members.filter(m => m.GU === gu);
+    return `
+      <div class="zone-group">
+        <div class="zone-title">구역 ${gu ?? '-'}</div>
+        <table>
+          <thead><tr><th>이름</th>${DOWS.map(d => `<th>${DOW_LABEL[d]}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${rows.map(m => `
+              <tr>
+                <td class="item-name">${m.NAME}</td>
+                ${m.days.map(d => `
+                  <td>
+                    <div class="board-cell">
+                      <span class="cnt">${d.checked}/${d.total}</span>
+                      <button type="button"
+                        data-ntt="${m.NTT_ID}" data-dow="${d.DOW}"
+                        class="${d.stamped ? 'stamped' : (d.total > 0 && d.checked === d.total ? 'eligible' : '')}"
+                        ${(d.total === 0 || d.checked < d.total) && !d.stamped ? 'disabled' : ''}>
+                        ${d.stamped ? '★ 취소' : '스탬프'}
+                      </button>
+                    </div>
+                  </td>`).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  board.querySelectorAll('.board-cell button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const nttId = Number(btn.dataset.ntt);
+      const dow = Number(btn.dataset.dow);
+      const stamped = btn.classList.contains('stamped');
+      btn.disabled = true;
+      try{
+        if(stamped){
+          await adminCall('/mychecklist/admin/stamp', { method:'DELETE', body: JSON.stringify({ NTT_ID: nttId, DOW: dow }) });
+        }else{
+          await adminCall('/mychecklist/admin/stamp', { method:'POST', body: JSON.stringify({ NTT_ID: nttId, DOW: dow }) });
+        }
+        loadAdminBoard();
+      }catch(e){
+        alert(`처리 실패: ${e.message}`);
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+async function loadAdminBoard(){
+  const board = document.getElementById('adminBoard');
+  board.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try{
+    const data = await adminGet('/mychecklist/admin/board');
+    renderAdminBoard(data);
   }catch(e){
-    resultArea.innerHTML = '';
-    showError(e.message);
-  }finally{
-    searchBtn.disabled = false;
+    board.innerHTML = `<div class="note">${e.message}</div>`;
   }
 }
 
-searchBtn.addEventListener('click', runSearch);
-nameInput.addEventListener('keydown', e => { if(e.key === 'Enter') runSearch(); });
+async function loadAdmin(){
+  document.getElementById('adminItemList').innerHTML = '<div class="loading">불러오는 중…</div>';
+  try{
+    const items = await adminGet('/mychecklist/admin/items');
+    renderAdminItems(items);
+  }catch(e){
+    document.getElementById('adminItemList').innerHTML = `<div class="note">${e.message}</div>`;
+  }
+  loadAdminBoard();
+}
+
+document.getElementById('adminLogoutBtn').addEventListener('click', () => {
+  localStorage.removeItem(TOKEN_KEY);
+  loginInput.value = '';
+  showOnly('landing');
+});
+
+document.getElementById('adminCloseWeekBtn').addEventListener('click', async () => {
+  if(!confirm('이번 주를 마감하시겠습니까? 요일별 체크/스탬프 현황이 이력으로 저장되고, 이번 주 체크는 모두 초기화됩니다.')) return;
+  try{
+    await adminCall('/mychecklist/admin/close-week', { method:'POST' });
+    loadAdminBoard();
+  }catch(e){ alert(`마감 실패: ${e.message}`); }
+});
 </script>
 
 </body>

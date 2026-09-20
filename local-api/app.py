@@ -2,7 +2,6 @@
 from flask import Flask
 
 from auth import auth_bp, require_auth
-from routes.checklist import checklist_bp
 from routes.meetings import meetings_bp
 from routes.members import members_bp
 from routes.mychecklist import mychecklist_bp
@@ -23,7 +22,6 @@ def create_app():
     app.register_blueprint(meetings_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(screenshot_bp)
-    app.register_blueprint(checklist_bp)
     app.register_blueprint(mychecklist_bp)
 
     return app

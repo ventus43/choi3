@@ -31,6 +31,12 @@ REPORT_PASSWORD = os.environ.get('REPORT_PASSWORD', 'SIM_KEY')
 REPORT_SESSION_SECRET = os.environ.get('REPORT_SESSION_SECRET', 'choi3-report::' + REPORT_PASSWORD)
 REPORT_SESSION_TTL = int(os.environ.get('REPORT_SESSION_TTL', '600'))  # 7Ius67Cp 로그인 유효시간(초): 10분
 
+# ── /mychecklist(c0p3X0jZsu) 관리자 전용 비밀번호 인증 — 이쪽도 본프로젝트 로그인과
+#    완전히 분리된 별도 토큰 체계. 비밀번호 자체는 (변경 가능해야 해서) 고정 env가 아니라
+#    CHOICHECKLIST_ADMIN 테이블에 저장 — 여기 시크릿은 로그인 성공 후 발급하는 토큰 서명용.
+CHECKLIST_SESSION_SECRET = os.environ.get('CHECKLIST_SESSION_SECRET', 'choi3-checklist-session')
+CHECKLIST_SESSION_TTL = int(os.environ.get('CHECKLIST_SESSION_TTL', '1800'))  # 체크리스트 관리자 로그인 유효시간(초): 30분
+
 
 # ── DB 접속정보 (charset/cursorclass 등 pymysql 옵션은 db.py 에서 합친다) ──────
 DB = dict(
