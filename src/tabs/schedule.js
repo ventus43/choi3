@@ -2,6 +2,7 @@ import { meetingApi, outreachApi } from '../core/api.js';
 import { renderZoneSelect, zoneMatch } from '../core/zone.js';
 import { nameMatch } from '../core/format.js';
 import { isoOffset } from '../core/date.js';
+import { effectiveMeetingStatus } from '../core/meeting-status.js';
 import { optimistic } from '../core/dom.js';
 import {
   bindOutsideClose, expandableCell, meetPersonLabel, renderMeetingDays,
@@ -21,6 +22,9 @@ export const TEMPLATE = `
           <span class="date-range">
             <input type="date" id="sch-from"> ~ <input type="date" id="sch-to">
             <input type="text" class="filter-search" id="schedule-search" placeholder="이름" autocomplete="off">
+            <select class="filter-select" id="schedule-status-filter" aria-label="진행 상태 필터">
+              <option value="">전체 상태</option><option value="select">선택</option><option value="confirm">만남</option><option value="cancel">취소</option>
+            </select>
             <button type="button" class="btn btn-ghost btn-sm" id="schedule-search-btn">검색</button>
             <button type="button" class="btn btn-ghost btn-sm" id="schedule-reset-btn">초기화</button>
           </span>
@@ -63,6 +67,7 @@ let people = [];        // PRG='중단' 아닌 섭외자 (대상자 선택용)
 let loadFailed = false;
 let guFilter  = '';      // '' = 전체 구역
 let nameQuery = '';
+let statusFilter = '';
 let pendingCancelId = null;   // 진행여부=취소 선택 후 비고에 사유 입력 중인 meeting id (동시에 하나만)
 let editingDateId = null;     // 날짜 수정 중인 meeting id
 let editingRowId = null;      // 시간장소·목표 수정 중인 meeting id (동시에 하나만)
@@ -89,10 +94,12 @@ function cacheEls() {
   els.rangeTo   = document.getElementById('sch-to');
   els.guFilter  = document.getElementById('schedule-gu-filter');
   els.search    = document.getElementById('schedule-search');
+  els.statusFilter = document.getElementById('schedule-status-filter');
 }
 
 function visibleRows() {
-  return rows.filter((m) => zoneMatch(m.zone, guFilter) && nameMatch(m.hireName, nameQuery));
+  return rows.filter((m) => zoneMatch(m.zone, guFilter) && nameMatch(m.hireName, nameQuery)
+    && (!statusFilter || progState(m) === statusFilter));
 }
 
 /* 단계만남(2회차 이상)은 날짜 옆에 만남 횟수(회차) 표기: 날짜(2) */
@@ -113,9 +120,7 @@ function feedbackBtn(m) {
 /* 진행여부: 선택(meetSt=1) / 취소(meetSt=2) / 만남(meetSt=3) — 취소된 항목도 표에 계속 남음 */
 function progState(m) {
   if (pendingCancelId === m.id) return 'cancel';   // 취소 선택 후 사유 입력 대기 중인 상태도 취소로 표시
-  if (m.meetSt === 2) return 'cancel';
-  if (m.meetSt === 3) return 'confirm';
-  return 'select';
+  return effectiveMeetingStatus(m);
 }
 
 function progressSelect(m) {
@@ -471,8 +476,12 @@ export async function initScheduleTab() {
   els.saveBtn.addEventListener('click', handleSave);
 
   // 검색: 날짜 범위 재조회 + 이름 필터 (버튼 하나로 통일)
-  const search = () => { nameQuery = els.search.value; reloadSchedule(); };
+  const search = () => { nameQuery = els.search.value; statusFilter = els.statusFilter.value; reloadSchedule(); };
   document.getElementById('schedule-search-btn').addEventListener('click', search);
+  els.statusFilter.addEventListener('change', () => {
+    statusFilter = els.statusFilter.value;
+    render();
+  });
   [els.search, els.rangeFrom, els.rangeTo].forEach((inp) => {
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   });
@@ -483,7 +492,9 @@ export async function initScheduleTab() {
     els.rangeFrom.value = d.from;
     els.rangeTo.value = d.to;
     els.search.value = '';
+    els.statusFilter.value = '';
     nameQuery = '';
+    statusFilter = '';
     guFilter = '';
     reloadSchedule();
   });

@@ -74,7 +74,12 @@
   width:auto; font-family:inherit; font-size:12px; padding:5px 8px;
   border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--ink);
 }
+.date-range select{
+  width:auto; min-height:30px; font-family:inherit; font-size:12px; padding:5px 8px;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--ink); cursor:pointer;
+}
 .date-range input[type="date"]:focus{ outline:none; border-color:var(--primary); }
+.date-range select:focus{ outline:none; border-color:var(--primary); }
 
 .entry-actions{ display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
 .icon-btn{

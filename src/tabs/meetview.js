@@ -1,6 +1,7 @@
 import { meetingApi } from '../core/api.js';
 import { nameMatch } from '../core/format.js';
 import { isoOffset } from '../core/date.js';
+import { effectiveMeetingStatus } from '../core/meeting-status.js';
 import {
   bindOutsideClose, expandableCell, meetPersonLabel, renderMeetingDays,
 } from './_meetings-table.js';
@@ -14,6 +15,9 @@ export const TEMPLATE = `
       <span class="date-range">
         <input type="date" id="mv-from"> ~ <input type="date" id="mv-to">
         <input type="text" class="filter-search" id="mv-name" placeholder="이름" autocomplete="off">
+        <select class="filter-select" id="mv-status" aria-label="진행 상태 필터">
+          <option value="">전체 상태</option><option value="select">선택</option><option value="confirm">만남</option><option value="cancel">취소</option>
+        </select>
         <button type="button" class="btn btn-ghost btn-sm" id="mv-search">검색</button>
         <button type="button" class="btn btn-ghost btn-sm" id="mv-reset">초기화</button>
       </span>
@@ -25,6 +29,7 @@ const els = {};
 
 let allRows   = [];   // 현재 기간으로 불러온 만남 전체 (이름 필터 전)
 let nameQuery = '';
+let statusFilter = '';
 let expandedCellKey = null;   // 펼쳐진 시간장소/목표/비고 셀 키 ("<id>-meetCn" 등, 동시에 하나만)
 
 /* 단계만남(2회차 이상)은 날짜 옆에 회차 표기: 날짜(2) — 일정 관리와 동일 */
@@ -34,9 +39,13 @@ function dateText(m) {
 }
 
 function progLabel(m) {
-  if (m.meetSt === 2) return { text: '취소', cls: 'prog-cancel' };
-  if (m.meetSt === 3) return { text: '만남', cls: 'prog-confirm' };
+  const status = effectiveMeetingStatus(m);
+  if (status === 'cancel') return { text: '취소', cls: 'prog-cancel' };
+  if (status === 'confirm') return { text: '만남', cls: 'prog-confirm' };
   return { text: '선택', cls: '' };
+}
+function progressKey(m) {
+  return effectiveMeetingStatus(m);
 }
 
 /* 일정 관리 표와 같은 컬럼 구성. 보기 전용이라 뱃지/텍스트로만 표시(수정 요소 없음) */
@@ -88,7 +97,8 @@ const defaultRange = () => ({ from: isoOffset(-1), to: isoOffset(14) });   // �
 /* 불러온 목록에 이름 필터만 적용해 다시 그린다 (API 재호출 없음) */
 function refresh() {
   els.count.textContent = allRows.length;
-  render(allRows.filter((m) => nameMatch(m.hireName, nameQuery)));
+  render(allRows.filter((m) => nameMatch(m.hireName, nameQuery)
+    && (!statusFilter || progressKey(m) === statusFilter)));
 }
 
 async function load() {
@@ -113,6 +123,7 @@ export async function initMeetSchedTab() {
   els.from  = document.getElementById('mv-from');
   els.to    = document.getElementById('mv-to');
   els.name  = document.getElementById('mv-name');
+  els.status = document.getElementById('mv-status');
 
   // 펼쳐진 셀 밖을 클릭하면 원래(말줄임) 상태로 되돌림
   bindOutsideClose(() => {
@@ -124,8 +135,12 @@ export async function initMeetSchedTab() {
   els.to.value = d.to;
 
   // 검색: 현재 날짜 범위로 재조회 + 이름 필터 적용 (버튼 하나로 통일)
-  const search = () => { nameQuery = els.name.value; load(); };
+  const search = () => { nameQuery = els.name.value; statusFilter = els.status.value; load(); };
   document.getElementById('mv-search').addEventListener('click', search);
+  els.status.addEventListener('change', () => {
+    statusFilter = els.status.value;
+    refresh();
+  });
   [els.name, els.from, els.to].forEach((inp) => {
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   });
@@ -136,7 +151,9 @@ export async function initMeetSchedTab() {
     els.from.value = dd.from;
     els.to.value = dd.to;
     els.name.value = '';
+    els.status.value = '';
     nameQuery = '';
+    statusFilter = '';
     load();
   });
 

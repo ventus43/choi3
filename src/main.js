@@ -5,6 +5,7 @@ import { initScreenshotButtons } from './screenshot.js';
 import * as zonestat from './tabs/zonestat.js';
 import * as meetview from './tabs/meetview.js';
 import * as check from './tabs/check.js';
+import * as dashboard from './tabs/dashboard.js';
 import * as schedule from './tabs/schedule.js';
 import * as outreach from './tabs/outreach.js';
 import * as member from './tabs/member.js';
@@ -14,6 +15,7 @@ const TABS = [
   { name: 'zonestat',  template: zonestat.TEMPLATE, init: zonestat.initZoneStatTab,  reload: zonestat.reloadZoneStat },
   { name: 'meetsched', template: meetview.TEMPLATE, init: meetview.initMeetSchedTab, reload: meetview.reloadMeetSched },
   { name: 'check',     template: check.TEMPLATE,    init: check.initCheckTab,        reload: check.reloadCheck },
+  { name: 'dashboard', template: dashboard.TEMPLATE, init: dashboard.initDashboardTab, reload: dashboard.reloadDashboard },
   { name: 'schedule',  template: schedule.TEMPLATE, init: schedule.initScheduleTab,  reload: schedule.reloadSchedule },
   { name: 'outreach',  template: outreach.TEMPLATE, init: outreach.initOutreachTab },
   { name: 'member',    template: member.TEMPLATE,   init: member.initMemberTab },
