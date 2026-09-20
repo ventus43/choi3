@@ -65,6 +65,11 @@
   .summary .box .t{font-size:12px; color:var(--sub);}
   .summary .box .n{font-size:17px; font-weight:700; margin-top:2px;}
   .summary .box .n small{font-size:11px; color:var(--warn); font-weight:600;}
+  #todaySummaryBox{grid-template-columns:repeat(4,minmax(0,1fr));}
+  #todayRateBox{grid-template-columns:1fr;margin-bottom:12px;}
+  #todayRateBox .box{padding:20px 10px;}
+  #todayRateBox .box .t{font-size:14px;}
+  #todayRateBox .box .n{font-size:38px;}
 
   .zone-card{
     background:var(--card); border:1px solid var(--line); border-radius:12px;
@@ -307,7 +312,7 @@
         <section class="work-section" id="review" aria-labelledby="review-title"><div class="section-heading"><div><div class="step-kicker">02 · 검토</div><h2 id="review-title">분석 결과와 저장 기록</h2><p>구역을 열어 이름을 바로 수정할 수 있습니다. 수정 사항은 같은 날짜 기록에 저장됩니다.</p></div><div class="status" id="saveStatus" role="status" aria-live="polite"></div></div><div id="reportOutput"><div class="result-toolbar"><div class="summary" id="summaryBoxes"></div></div><div id="zoneList"></div><h3>성전 외 출석 · 줌</h3><div id="faceOnlyList"></div></div><div class="panel"><h3>저장된 주차 기록</h3><p class="field-help">날짜를 선택하면 해당 기록을 검토 영역에 불러옵니다.</p><div id="historyList" aria-live="polite"></div></div></section>
       </div>
       <div data-tab-panel="insight" hidden>
-        <section class="work-section" id="todaySummary" aria-labelledby="todaySummary-title"><div class="section-heading"><div><div class="step-kicker">오늘</div><h2 id="todaySummary-title">오늘 출석 요약</h2><p id="todaySummarySub"></p></div></div><div class="panel"><div id="todaySummaryBox" class="summary"></div><div id="todaySummaryRate" class="note"></div></div></section>
+        <section class="work-section" id="todaySummary" aria-labelledby="todaySummary-title"><div class="section-heading"><div><div class="step-kicker">오늘</div><h2 id="todaySummary-title">오늘 출석 요약</h2><p id="todaySummarySub"></p></div></div><div class="panel"><div id="todayRateBox" class="summary"></div><div id="todaySummaryBox" class="summary"></div></div></section>
         <section class="work-section" id="attendance" aria-labelledby="attendance-title"><div class="section-heading"><div><div class="step-kicker">03 · 현황</div><h2 id="attendance-title">출석 대시보드</h2><p>저장된 기록과 구역 명단을 기준으로 출석 상태를 확인합니다.</p></div></div><div class="input-card"><div class="input-row"><div class="date-field"><label class="field-label" for="dashDate">조회 날짜</label><select id="dashDate" aria-label="대시보드 조회 날짜"></select></div><button type="button" onclick="void 0" class="btn ghost btn-sm" id="dashRefreshBtn">현황 새로고침</button></div></div><div class="panel"><div id="dashSummary" class="summary"></div><div id="dashZoneList" aria-live="polite"></div></div></section>
         <section class="work-section" id="absence" aria-labelledby="absence-title"><div class="section-heading"><div><div class="step-kicker">03A · 관리</div><h2 id="absence-title">결석 인원 관리</h2><p>선택 날짜에 결석인 인원만 표시하며, 저장된 기록 기준 연속 결석 주차를 확인합니다.</p></div></div><div class="absence-panel"><div id="absenceList" aria-live="polite"><div class="loading">대시보드 날짜를 선택해 주세요.</div></div></div></section>
         <section class="work-section" id="trend" aria-labelledby="trend-title"><div class="section-heading"><div><div class="step-kicker">04 · 비교</div><h2 id="trend-title">구역별 출석 추이</h2><p>선택한 기간의 QR 인증 인원과 구역 전체 인원을 비교합니다.</p></div></div><div class="trend-controls"><div class="date-field"><label class="field-label" for="trendStartDate">시작일</label><input type="date" id="trendStartDate"></div><div class="date-field"><label class="field-label" for="trendEndDate">종료일</label><input type="date" id="trendEndDate"></div><label class="trend-sunday-filter" for="trendSundayOnly"><input type="checkbox" id="trendSundayOnly"><span>주일 기록만 보기<small>일요일 외 기록 제외</small></span></label><button type="button" class="btn" id="trendRefreshBtn">기간 조회</button><button type="button" class="btn ghost" id="trendClearBtn">전체 기간</button><span class="trend-range-status" id="trendRangeStatus">기간을 지정하지 않으면 전체 기록을 표시합니다.</span><span class="trend-filter-error" id="trendFilterError" role="alert"></span></div><div id="trendChartWrap" aria-label="구역별 출석률 점 그래프"></div><div class="trend-card-layout" id="trendCardLayoutControl" hidden><label class="field-label" for="trendCardLayout">구역별 카드 레이아웃</label><select id="trendCardLayout"><option value="wide">넓게 보기</option><option value="default" selected>기본 보기</option><option value="compact">촘촘히 보기</option></select></div><div id="trendCardsWrap" aria-label="구역별 추이 카드"></div><div id="trendTableWrap" tabindex="0" aria-label="구역별 출석 추이 표"></div></section>
@@ -1108,12 +1113,12 @@ async function renderDashboard(){
 /* 출석 추이 탭 최상단 고정 요약 — dashDate 선택과 무관하게 항상 오늘 날짜 기준 현황을 보여준다. */
 async function renderTodaySummary(){
   const subEl = document.getElementById('todaySummarySub');
+  const rateBoxEl = document.getElementById('todayRateBox');
   const boxEl = document.getElementById('todaySummaryBox');
-  const rateEl = document.getElementById('todaySummaryRate');
   const todayStr = new Date().toISOString().slice(0,10);
   subEl.textContent = todayStr + ' 기준';
+  rateBoxEl.innerHTML = '';
   boxEl.innerHTML = '<div class="loading">불러오는 중…</div>';
-  rateEl.textContent = '';
   let reportData, roster;
   try{
     [reportData, roster] = await Promise.all([storage.get(todayStr), fetchRoster()]);
@@ -1128,16 +1133,14 @@ async function renderTodaySummary(){
   const attendance = computeAttendance(reportData, roster);
   const totals = { 'QR인증':0, 'QR안함':0, '줌':0, '결석':0 };
   attendance.forEach(a=>totals[a.status]++);
+
+  const total = attendance.length;
+  const visitRate = total > 0 ? Math.round(totals['QR인증'] / total * 100) : 0;
+  rateBoxEl.innerHTML = `<div class="box"><div class="t">출석률</div><div class="n">${visitRate}%</div></div>`;
+
   boxEl.innerHTML = Object.entries(totals).map(([k,v])=>
     `<div class="box"><div class="t">${k}</div><div class="n">${v}</div></div>`
   ).join('');
-
-  const total = attendance.length;
-  if(total > 0){
-    const visitRate = Math.round(totals['QR인증'] / total * 100);
-    const absentRate = Math.round(totals['결석'] / total * 100);
-    rateEl.textContent = `방문율 ${visitRate}% (QR인증 ${totals['QR인증']}/${total}) · 결석율 ${absentRate}% (결석 ${totals['결석']}/${total})`;
-  }
 }
 
 async function renderAbsenceList(dateStr, roster, currentAttendance){
