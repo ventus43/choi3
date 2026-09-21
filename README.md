@@ -33,8 +33,10 @@ API_TARGET=http://localhost:8081 npm run dev -- --host    # http://localhost:517
 
 | 파일 | 내용 | 상태 |
 |---|---|---|
-| `migrations/2026-09-13_meetst.sql` | `CHOIMEETSCHEDULE.MEETYN`(CHAR Y/N) → `MEETST`(TINYINT 1=선택/2=취소/3=만남)로 교체 | 로컬 + 운영 모두 적용 완료 |
 | `migrations/2026-09-14_choireport.sql` | `CHOIREPORT` 테이블 신규 생성 (아래 7Ius67Cp 기능용) | 로컬 + 운영 모두 적용 완료(사용자 직접 실행) |
+| `migrations/2026-09-22_choichecklist.sql` | `CHOICHECKLIST_*` 5개 테이블 신규 생성 (아래 체크리스트 기능용) | 로컬만 적용, 운영 미반영 |
+
+> `CHOIMEETSCHEDULE.MEETYN` → `MEETST` 교체 마이그레이션은 로컬/운영 모두 적용 완료 후 파일을 정리했다 — 결과는 `mysql-init/01_schema.sql`의 `MEETST` 컬럼에 이미 반영돼 있음.
 
 ## 신규 기능: 인원관리 시스템(`/7Ius67Cp`)
 
@@ -100,3 +102,15 @@ API_TARGET=http://localhost:8081 npm run dev -- --host    # http://localhost:517
 - ✅ **화면 자체를 입력/보기 탭으로 분리**(2026-09-15): 카드 단위 분리로는 부족하다고 판단, choi3 SPA(`src/main.js`)의 탭 전환(`hidden` 속성 토글, 한 번에 패널 하나만 노출)과 동일한 방식을 적용. `.page-tabs`의 "입력하는 곳"(01 분석 섹션만) / "보기만 하는 곳"(02 검토·03 대시보드·04 추이 전부)으로 완전히 나뉜 화면 — `setupPageTabs()`/`switchToTab()`. 저장 성공 시 자동으로 "보기" 탭으로 전환됨(붙여넣고 바로 결과 확인). 사이드바 앵커 네비게이션(`.workflow-nav`)은 제거함.
 
 계획했던 3단계 모두 완료됨. 다음 세션에서 추가 요청이 있으면 위 로컬 개발 환경부터 띄우고 시작할 것.
+
+## 신규 기능: 체크리스트(`/c0p3X0jZsu.html`)
+
+사명자(`CHOIMEMBER.ISMISSION='Y'`) 대상 요일별 체크리스트. `choi3.gventus.store/c0p3X0jZsu.html`로 접근(난독화된 파일명, `7Ius67Cp`와 동일한 패턴이지만 확장자 없는 clean URL 라우팅은 nginx에 따로 없음 — `.html`을 붙여서 접근).
+
+- **파일**: `public/c0p3X0jZsu.html` — `7Ius67Cp.html`처럼 Vite 앱(`src/tabs/*`)에 속하지 않는 완전히 독립적인 단일 HTML 파일. choi3 SPA(관리시스템) 항목이 **아니다** — 처음엔 SPA 탭으로 만들었다가 관리시스템 밖 독립 페이지로 전면 이전함.
+- **접근/인증**: 이름 입력창 하나로 두 갈래 — 이름을 입력하면 본인 조회(무인증), 관리자 비밀번호를 입력하면 관리자 화면으로 전환. 관리자 비밀번호는 `OFFICE_PASSWORD`/`REPORT_PASSWORD`와 별개로 `CHOICHECKLIST_ADMIN` 테이블에 저장되어 있어 관리자가 화면에서 직접 변경 가능(env 고정값이 아님). 로그인 성공 시 발급되는 토큰(`X-Checklist-Auth`)은 `local-api/auth.py`의 `CHECKLIST_SESSION_SECRET`으로 서명 — 본프로젝트(`X-Office-Auth`)·7Ius67Cp(`X-Report-Auth`) 토큰과 서로 호환 안 됨.
+  - `/mychecklist/*` 전체가 `auth.EXEMPT_PREFIXES`에 등록되어 전역 백오피스 인증(`X-Office-Auth`) 검사 대상이 아니다.
+- **항목 구조**: 체크 항목이 **요일별로 완전히 분리**되어 있다(월요일 항목과 화요일 항목이 서로 다른 목록) — 관리자가 요일마다 항목을 추가/수정/삭제. 요일마다 기본 5개 빈 항목으로 시작.
+- **API** (`local-api/routes/mychecklist.py`): `GET /mychecklist/search`(이름 조회) · `GET/PUT /mychecklist/<id>`, `/mychecklist/<id>/check`(본인 자가 체크) · `GET /mychecklist/<id>/history`(이전주차요약) · `POST /mychecklist/admin/login` · `PUT /mychecklist/admin/password` · `GET/POST/PUT/DELETE /mychecklist/admin/items`(요일별 항목 CRUD) · `GET /mychecklist/admin/board`(구역별 현황) · `POST/DELETE /mychecklist/admin/stamp`(스탬프 부여/취소, 해당 요일 전 항목 체크 시에만 서버에서 허용) · `POST /mychecklist/admin/close-week`(요일별 요약을 이력에 남기고 초기화).
+- **저장**: `CHOICHECKLIST_ITEM`(요일별 항목) · `CHOICHECKLIST`(이번 주 체크 상태, 사용자 자가 토글) · `CHOICHECKLIST_STAMP`(이번 주 요일별 스탬프) · `CHOICHECKLIST_HISTORY`(주 마감 시 남는 요일별 요약: 체크 개수/전체/스탬프 여부) · `CHOICHECKLIST_ADMIN`(관리자 비밀번호 단일 행). 스키마: `migrations/2026-09-22_choichecklist.sql`(운영 DB엔 아직 수동 미적용) / `mysql-init/01_schema.sql`(신규 설치용, 동일 반영).
+- **관리자 화면 구성**: 오늘 현황(전체 사명자/오늘 전항목 완료/오늘 스탬프 + 구역별 완료 칩) → 구역별 현황(인원×요일 표, 칸마다 체크개수 + 조건 충족 시 스탬프 버튼) → 날짜별 체크항목 관리(요일별 그리드, 항목마다 인라인 수정/삭제 + 요일별 추가 입력창). 비밀번호 변경 카드는 현재 숨김 처리(로직은 남아있음).
