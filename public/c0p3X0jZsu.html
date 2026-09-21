@@ -29,6 +29,7 @@
     flex:1 1 160px; min-width:0; border:1px solid var(--line); border-radius:8px;
     padding:9px 10px; font-size:14px; font-family:inherit;
   }
+  #adminNewPwInput{flex:0 1 20%; min-width:140px;}
   .btn{
     background:var(--accent); color:#fff; border:none; padding:9px 14px;
     border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
@@ -54,15 +55,9 @@
   table{width:100%; border-collapse:collapse; font-size:12.5px;}
   th,td{border:1px solid var(--line); padding:7px 6px; text-align:center;}
   th{background:#fafbfc; font-weight:600; color:var(--sub);}
-  th.today, td.today{background:var(--accent-soft);}
   td.item-name{text-align:left; font-weight:600; color:var(--ink); white-space:nowrap;}
-  .chk{width:18px; height:18px; cursor:pointer; accent-color:var(--accent);}
   .stamp-icon{color:var(--stamp); font-size:14px;}
   .loading, .note{color:var(--sub); font-size:13px; padding:10px 0;}
-
-  .item-list{display:flex; flex-direction:column; gap:6px; margin-bottom:12px;}
-  .item-row{display:flex; gap:6px; align-items:center;}
-  .item-row input[type=text]{flex:1;}
 
   .overview-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
   .stat-box{background:var(--accent-soft); border-radius:10px; padding:12px; text-align:center;}
@@ -84,6 +79,24 @@
   .board-cell button.eligible{border-color:var(--stamp); color:var(--stamp); font-weight:700;}
   .board-cell button.stamped{background:var(--stamp); border-color:var(--stamp); color:#fff;}
   .board-cell button:disabled{cursor:not-allowed; opacity:.5;}
+
+  .day-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
+  .day-col{background:#fafbfc; border:1px solid var(--line); border-radius:10px; padding:10px;}
+  .day-col-title{font-weight:700; font-size:13px; margin-bottom:8px; color:var(--accent);}
+  .day-item-row{display:flex; align-items:center; gap:4px; margin-bottom:6px; font-size:12.5px;}
+  .day-item-label{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink);}
+  .day-item-label.empty{color:var(--sub); font-style:italic;}
+  .day-item-row input[type=text]{flex:1; padding:5px 6px; font-size:12.5px;}
+  .day-item-row button{font-size:11px; padding:3px 6px; border-radius:5px; border:1px solid var(--line); background:#fff; cursor:pointer;}
+  .day-add-row{display:flex; gap:4px; margin-top:6px;}
+  .day-add-row input{flex:1; padding:5px 6px; font-size:12.5px;}
+  .day-add-row button{font-size:11px; padding:5px 8px;}
+
+  .user-day-card{background:#fafbfc; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px;}
+  .user-day-card.today{background:var(--accent-soft); border-color:var(--accent);}
+  .user-day-head{display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; margin-bottom:8px;}
+  .user-item-row{display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13.5px; cursor:pointer;}
+  .user-item-row input{width:18px; height:18px; accent-color:var(--accent); cursor:pointer;}
 
   .fab{
     position:fixed; right:16px; bottom:16px; z-index:20;
@@ -138,29 +151,25 @@
   <div class="card" id="adminOverview"></div>
 
   <div class="card">
-    <h2>체크 항목</h2>
-    <div class="item-list" id="adminItemList"></div>
-    <div class="row">
-      <input type="text" id="adminNewItemInput" placeholder="새 항목 이름" maxlength="50">
-      <button type="button" class="btn sm" id="adminAddItemBtn">항목 추가</button>
+    <div class="head-row">
+      <h2 style="margin:0">구역별 현황</h2>
+      <button type="button" class="btn danger sm" id="adminCloseWeekBtn">이번 주 마감</button>
     </div>
+    <div id="adminBoard"></div>
   </div>
 
   <div class="card">
+    <h2>날짜별 체크항목 관리</h2>
+    <div class="day-grid" id="adminDayGrid"></div>
+  </div>
+
+  <div class="card" hidden>
     <h2>관리자 비밀번호 변경</h2>
     <div class="row">
       <input type="password" id="adminNewPwInput" placeholder="새 비밀번호" autocomplete="new-password">
       <button type="button" class="btn sm" id="adminSavePwBtn">변경</button>
     </div>
     <div class="error-text" id="adminPwMsg"></div>
-  </div>
-
-  <div class="card">
-    <div class="head-row">
-      <h2 style="margin:0">구역별 현황</h2>
-      <button type="button" class="btn danger sm" id="adminCloseWeekBtn">이번 주 마감</button>
-    </div>
-    <div id="adminBoard"></div>
   </div>
 </div>
 
@@ -264,48 +273,49 @@ loginBtn.addEventListener('click', runLogin);
 loginInput.addEventListener('keydown', e => { if(e.key === 'Enter') runLogin(); });
 
 // ── 사용자 화면 ──
-let userState = null; // { nttId, items, checkedSet, today }
+let userState = null; // { nttId, items, checkedSet, today, stamped }
 
 function renderUserTable(){
-  const { items, checkedSet, today } = userState;
+  const { items, checkedSet, today, stamped } = userState;
   const wrap = document.getElementById('userTableWrap');
-  if(items.length === 0){
-    wrap.innerHTML = '<div class="note">등록된 체크 항목이 없습니다. 관리자에게 문의해 주세요.</div>';
-    return;
-  }
-  wrap.innerHTML = `
-    <table>
-      <thead>
-        <tr><th>항목</th>${DOWS.map(d => `<th class="${d===today?'today':''}">${DOW_LABEL[d]}</th>`).join('')}</tr>
-      </thead>
-      <tbody>
-        ${items.map(it => `
-          <tr>
-            <td class="item-name">${it.LABEL}</td>
-            ${DOWS.map(d => `
-              <td class="${d===today?'today':''}">
-                <input type="checkbox" class="chk" data-dow="${d}" data-item="${it.ID}" ${checkedSet.has(`${d}|${it.ID}`) ? 'checked' : ''}>
-              </td>`).join('')}
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
+  const byDow = new Map(DOWS.map(d => [d, []]));
+  items.forEach(it => byDow.get(it.DOW)?.push(it));
+
+  wrap.innerHTML = DOWS.map(dow => {
+    const dayItems = byDow.get(dow) || [];
+    const isToday = dow === today;
+    const isStamped = stamped.includes(dow);
+    return `
+      <div class="user-day-card ${isToday ? 'today' : ''}">
+        <div class="user-day-head">
+          <span>${DOW_LABEL[dow]}요일${isToday ? ' · 오늘' : ''}</span>
+          ${isStamped ? '<span class="stamp-icon">★ 스탬프</span>' : ''}
+        </div>
+        ${dayItems.length === 0
+          ? '<div class="note">등록된 항목이 없습니다.</div>'
+          : dayItems.map(it => `
+            <label class="user-item-row">
+              <input type="checkbox" class="chk" data-item="${it.ID}" ${checkedSet.has(it.ID) ? 'checked' : ''}>
+              <span>${it.LABEL || '(항목 미설정)'}</span>
+            </label>`).join('')}
+      </div>`;
+  }).join('');
+
   wrap.querySelectorAll('.chk').forEach(box => {
     box.addEventListener('change', () => toggleUserCheck(box));
   });
 }
 
 async function toggleUserCheck(box){
-  const dow = Number(box.dataset.dow);
   const itemId = Number(box.dataset.item);
-  const key = `${dow}|${itemId}`;
   const next = box.checked;
   box.disabled = true;
   try{
     await apiCall(`/mychecklist/${userState.nttId}/check`, {
       method:'PUT',
-      body: JSON.stringify({ DOW: dow, ITEM_ID: itemId, CHECKED: next }),
+      body: JSON.stringify({ ITEM_ID: itemId, CHECKED: next }),
     });
-    if(next) userState.checkedSet.add(key); else userState.checkedSet.delete(key);
+    if(next) userState.checkedSet.add(itemId); else userState.checkedSet.delete(itemId);
   }catch(e){
     box.checked = !next;
     alert(`저장 실패: ${e.message}`);
@@ -324,8 +334,9 @@ async function loadUser(nttId){
     userState = {
       nttId,
       items: data.items,
-      checkedSet: new Set(data.state.filter(s => s.CHECKED === 'Y').map(s => `${s.DOW}|${s.ITEM_ID}`)),
+      checkedSet: new Set(data.state.filter(s => s.CHECKED === 'Y').map(s => s.ITEM_ID)),
       today: data.today,
+      stamped: data.stamped,
     };
     renderUserTable();
   }catch(e){
@@ -385,32 +396,38 @@ historyFab.addEventListener('click', async () => {
 async function adminGet(path){ return apiCall(path, { headers: adminHeaders() }); }
 async function adminCall(path, options){ return apiCall(path, { ...options, headers: { ...adminHeaders(), ...(options?.headers||{}) } }); }
 
+let adminItemsCache = [];
+
 function renderAdminItems(items){
-  const list = document.getElementById('adminItemList');
-  if(items.length === 0){
-    list.innerHTML = '<div class="note">등록된 항목이 없습니다. 아래에서 추가해 주세요.</div>';
-    return;
-  }
-  list.innerHTML = items.map(it => `
-    <div class="item-row" data-id="${it.ID}">
-      <input type="text" value="${it.LABEL}" maxlength="50">
-      <button type="button" class="btn ghost sm" data-save>저장</button>
-      <button type="button" class="btn danger sm" data-del>삭제</button>
+  adminItemsCache = items;
+  const grid = document.getElementById('adminDayGrid');
+  const byDow = new Map(DOWS.map(d => [d, []]));
+  items.forEach(it => byDow.get(it.DOW)?.push(it));
+
+  grid.innerHTML = DOWS.map(dow => `
+    <div class="day-col" data-dow="${dow}">
+      <div class="day-col-title">${DOW_LABEL[dow]}요일</div>
+      <div class="day-item-list">
+        ${(byDow.get(dow) || []).map(it => `
+          <div class="day-item-row" data-id="${it.ID}">
+            <span class="day-item-label ${it.LABEL ? '' : 'empty'}">${it.LABEL || '(빈 항목)'}</span>
+            <button type="button" data-edit>수정</button>
+            <button type="button" data-del>삭제</button>
+          </div>`).join('') || '<div class="note" style="padding:2px 0">항목 없음</div>'}
+      </div>
+      <div class="day-add-row">
+        <input type="text" placeholder="새 항목" maxlength="50">
+        <button type="button" data-add>추가</button>
+      </div>
     </div>`).join('');
-  list.querySelectorAll('[data-save]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const row = btn.closest('.item-row');
-      const label = row.querySelector('input').value.trim();
-      if(!label) return;
-      try{
-        const items = await adminCall(`/mychecklist/admin/items/${row.dataset.id}`, { method:'PUT', body: JSON.stringify({ LABEL: label }) });
-        renderAdminItems(items);
-      }catch(e){ alert(`저장 실패: ${e.message}`); }
-    });
+
+  grid.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => startEditItem(btn.closest('.day-item-row')));
   });
-  list.querySelectorAll('[data-del]').forEach(btn => {
+
+  grid.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const row = btn.closest('.item-row');
+      const row = btn.closest('.day-item-row');
       if(!confirm('이 항목을 삭제하시겠습니까? 해당 항목의 체크 기록도 함께 삭제됩니다.')) return;
       try{
         const items = await adminCall(`/mychecklist/admin/items/${row.dataset.id}`, { method:'DELETE' });
@@ -419,18 +436,47 @@ function renderAdminItems(items){
       }catch(e){ alert(`삭제 실패: ${e.message}`); }
     });
   });
+
+  grid.querySelectorAll('.day-col').forEach(col => {
+    const dow = Number(col.dataset.dow);
+    const addInput = col.querySelector('.day-add-row input');
+    const addBtn = col.querySelector('.day-add-row button');
+    const doAdd = async () => {
+      const label = addInput.value.trim();
+      addBtn.disabled = true;
+      try{
+        const items = await adminCall('/mychecklist/admin/items', { method:'POST', body: JSON.stringify({ DOW: dow, LABEL: label }) });
+        renderAdminItems(items);
+        loadAdminBoard();
+      }catch(e){
+        alert(`추가 실패: ${e.message}`);
+        addBtn.disabled = false;
+      }
+    };
+    addBtn.addEventListener('click', doAdd);
+    addInput.addEventListener('keydown', e => { if(e.key === 'Enter') doAdd(); });
+  });
 }
 
-document.getElementById('adminAddItemBtn').addEventListener('click', async () => {
-  const input = document.getElementById('adminNewItemInput');
-  const label = input.value.trim();
-  if(!label) return;
-  try{
-    const items = await adminCall('/mychecklist/admin/items', { method:'POST', body: JSON.stringify({ LABEL: label }) });
-    input.value = '';
-    renderAdminItems(items);
-  }catch(e){ alert(`추가 실패: ${e.message}`); }
-});
+function startEditItem(row){
+  const current = adminItemsCache.find(it => it.ID === Number(row.dataset.id));
+  row.innerHTML = `
+    <input type="text" value="${current ? current.LABEL : ''}" maxlength="50">
+    <button type="button" data-save>저장</button>
+    <button type="button" data-cancel>취소</button>`;
+  const input = row.querySelector('input');
+  input.focus();
+  const save = async () => {
+    const label = input.value.trim();
+    try{
+      const items = await adminCall(`/mychecklist/admin/items/${row.dataset.id}`, { method:'PUT', body: JSON.stringify({ LABEL: label }) });
+      renderAdminItems(items);
+    }catch(e){ alert(`저장 실패: ${e.message}`); }
+  };
+  row.querySelector('[data-save]').addEventListener('click', save);
+  row.querySelector('[data-cancel]').addEventListener('click', () => renderAdminItems(adminItemsCache));
+  input.addEventListener('keydown', e => { if(e.key === 'Enter') save(); });
+}
 
 document.getElementById('adminSavePwBtn').addEventListener('click', async () => {
   const input = document.getElementById('adminNewPwInput');
@@ -551,12 +597,12 @@ async function loadAdminBoard(){
 }
 
 async function loadAdmin(){
-  document.getElementById('adminItemList').innerHTML = '<div class="loading">불러오는 중…</div>';
+  document.getElementById('adminDayGrid').innerHTML = '<div class="loading">불러오는 중…</div>';
   try{
     const items = await adminGet('/mychecklist/admin/items');
     renderAdminItems(items);
   }catch(e){
-    document.getElementById('adminItemList').innerHTML = `<div class="note">${e.message}</div>`;
+    document.getElementById('adminDayGrid').innerHTML = `<div class="note">${e.message}</div>`;
   }
   loadAdminBoard();
 }

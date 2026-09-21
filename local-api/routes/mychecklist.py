@@ -2,8 +2,11 @@
 독립 공개 페이지(public/c0p3X0jZsu.html) 전용 API — 본프로젝트 백오피스 인증(X-Office-Auth)과
 완전히 분리되어 있다(auth.EXEMPT_PREFIXES 에 등록, 이 블루프린트 전체가 무인증으로 열려 있음).
 
+체크 항목은 요일별로 완전히 분리돼 있다 — 항목(CHOICHECKLIST_ITEM)이 자기 DOW를 갖고 있어
+CHOICHECKLIST(체크 상태)엔 DOW 컬럼이 없다(ITEM_ID로 요일이 이미 정해짐).
+
 접근 두 갈래:
-  - 사용자: 이름을 입력해 본인을 찾고, 본인 체크(요일×항목)를 직접 토글한다. 인증 없음.
+  - 사용자: 이름을 입력해 본인을 찾고, 본인 체크를 직접 토글한다. 인증 없음.
   - 관리자: 같은 입력창에 비밀번호를 넣으면(프론트에서 로그인 시도) 이 아래 /admin/* 로
     들어간다. 비밀번호는 CHOICHECKLIST_ADMIN 테이블에 저장돼 있어 관리자가 바꿀 수 있고,
     로그인 성공 시 발급되는 토큰(X-Checklist-Auth 헤더)으로 /admin/* 만 보호한다.
@@ -59,10 +62,10 @@ def mychecklist_detail(ntt_id):
         if not member:
             return jsonify({'message': '대상을 찾을 수 없습니다.'}), 404
 
-        cur.execute('SELECT ID, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY SORT_ORDER, ID')
+        cur.execute('SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY DOW, SORT_ORDER, ID')
         items = cur.fetchall()
 
-        cur.execute('SELECT DOW, ITEM_ID, CHECKED FROM CHOICHECKLIST WHERE NTT_ID=%s', (ntt_id,))
+        cur.execute('SELECT ITEM_ID, CHECKED FROM CHOICHECKLIST WHERE NTT_ID=%s', (ntt_id,))
         state = cur.fetchall()
 
         cur.execute('SELECT DOW FROM CHOICHECKLIST_STAMP WHERE NTT_ID=%s', (ntt_id,))
@@ -75,10 +78,9 @@ def mychecklist_detail(ntt_id):
 def mychecklist_check(ntt_id):
     """본인 체크 토글 — 무인증(이름으로 본인을 찾은 사용자가 직접 체크)."""
     body = request.get_json(silent=True) or {}
-    dow = body.get('DOW')
     item_id = body.get('ITEM_ID')
     checked = 'Y' if body.get('CHECKED') else 'N'
-    if dow not in DOWS or not isinstance(item_id, int):
+    if not isinstance(item_id, int):
         return jsonify({'message': '잘못된 요청입니다.'}), 400
 
     with db_cursor(commit=True) as cur:
@@ -90,9 +92,9 @@ def mychecklist_check(ntt_id):
             return jsonify({'message': '존재하지 않는 항목입니다.'}), 400
 
         cur.execute(
-            'INSERT INTO CHOICHECKLIST (NTT_ID, DOW, ITEM_ID, CHECKED) VALUES (%s,%s,%s,%s)'
+            'INSERT INTO CHOICHECKLIST (NTT_ID, ITEM_ID, CHECKED) VALUES (%s,%s,%s)'
             ' ON DUPLICATE KEY UPDATE CHECKED=%s',
-            (ntt_id, dow, item_id, checked, checked),
+            (ntt_id, item_id, checked, checked),
         )
         return jsonify({'ok': True})
 
@@ -148,7 +150,7 @@ def mychecklist_admin_password():
     return jsonify({'ok': True})
 
 
-# ── 관리자: 항목 관리 ───────────────────────────────────────────────────────
+# ── 관리자: 요일별 항목 관리 ─────────────────────────────────────────────────
 
 @mychecklist_bp.route('/mychecklist/admin/items', methods=['GET'])
 def mychecklist_admin_items():
@@ -156,7 +158,7 @@ def mychecklist_admin_items():
     if guard:
         return guard
     with db_cursor() as cur:
-        cur.execute('SELECT ID, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY SORT_ORDER, ID')
+        cur.execute('SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY DOW, SORT_ORDER, ID')
         return jsonify(cur.fetchall())
 
 
@@ -166,14 +168,18 @@ def mychecklist_admin_item_create():
     if guard:
         return guard
     body = request.get_json(silent=True) or {}
+    dow = body.get('DOW')
     label = (body.get('LABEL') or '').strip()
-    if not label:
-        return jsonify({'message': '항목 이름을 입력해 주세요.'}), 400
+    if dow not in DOWS:
+        return jsonify({'message': '잘못된 요일입니다.'}), 400
     with db_cursor(commit=True) as cur:
-        cur.execute('SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS n FROM CHOICHECKLIST_ITEM')
+        cur.execute('SELECT COALESCE(MAX(SORT_ORDER), 0) + 1 AS n FROM CHOICHECKLIST_ITEM WHERE DOW=%s', (dow,))
         sort_order = cur.fetchone()['n']
-        cur.execute('INSERT INTO CHOICHECKLIST_ITEM (LABEL, SORT_ORDER) VALUES (%s,%s)', (label, sort_order))
-        cur.execute('SELECT ID, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY SORT_ORDER, ID')
+        cur.execute(
+            'INSERT INTO CHOICHECKLIST_ITEM (DOW, LABEL, SORT_ORDER) VALUES (%s,%s,%s)',
+            (dow, label, sort_order),
+        )
+        cur.execute('SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY DOW, SORT_ORDER, ID')
         return jsonify(cur.fetchall()), 201
 
 
@@ -184,11 +190,9 @@ def mychecklist_admin_item_update(item_id):
         return guard
     body = request.get_json(silent=True) or {}
     label = (body.get('LABEL') or '').strip()
-    if not label:
-        return jsonify({'message': '항목 이름을 입력해 주세요.'}), 400
     with db_cursor(commit=True) as cur:
         cur.execute('UPDATE CHOICHECKLIST_ITEM SET LABEL=%s WHERE ID=%s', (label, item_id))
-        cur.execute('SELECT ID, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY SORT_ORDER, ID')
+        cur.execute('SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY DOW, SORT_ORDER, ID')
         return jsonify(cur.fetchall())
 
 
@@ -200,7 +204,7 @@ def mychecklist_admin_item_delete(item_id):
     with db_cursor(commit=True) as cur:
         cur.execute('DELETE FROM CHOICHECKLIST_ITEM WHERE ID=%s', (item_id,))
         cur.execute('DELETE FROM CHOICHECKLIST WHERE ITEM_ID=%s', (item_id,))
-        cur.execute('SELECT ID, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY SORT_ORDER, ID')
+        cur.execute('SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY DOW, SORT_ORDER, ID')
         return jsonify(cur.fetchall())
 
 
@@ -208,7 +212,8 @@ def mychecklist_admin_item_delete(item_id):
 
 @mychecklist_bp.route('/mychecklist/admin/board', methods=['GET'])
 def mychecklist_admin_board():
-    """구역별로 구분해 사용자별 요일별 체크 현황(개수/전체)과 스탬프 여부를 보여준다."""
+    """구역별로 구분해 사용자별 요일별 체크 현황(개수/전체)과 스탬프 여부를 보여준다.
+    항목이 요일별로 다르므로 요일별 전체 개수(total)도 요일마다 다르게 계산한다."""
     guard = _require_admin()
     if guard:
         return guard
@@ -216,15 +221,21 @@ def mychecklist_admin_board():
         cur.execute("SELECT NTT_ID, GU, NAME FROM CHOIMEMBER WHERE ISMISSION='Y' ORDER BY GU, NTT_ID")
         members = cur.fetchall()
 
-        cur.execute('SELECT COUNT(*) AS n FROM CHOICHECKLIST_ITEM')
-        total_items = cur.fetchone()['n']
-
-        cur.execute(
-            "SELECT NTT_ID, DOW, COUNT(*) AS n FROM CHOICHECKLIST WHERE CHECKED='Y' GROUP BY NTT_ID, DOW"
-        )
-        checked_map = {}
+        cur.execute('SELECT ID, DOW FROM CHOICHECKLIST_ITEM')
+        item_dow = {}          # item_id -> dow
+        total_by_dow = {}      # dow -> 항목 개수
         for r in cur.fetchall():
-            checked_map.setdefault(r['NTT_ID'], {})[r['DOW']] = r['n']
+            item_dow[r['ID']] = r['DOW']
+            total_by_dow[r['DOW']] = total_by_dow.get(r['DOW'], 0) + 1
+
+        cur.execute("SELECT NTT_ID, ITEM_ID FROM CHOICHECKLIST WHERE CHECKED='Y'")
+        checked_map = {}        # ntt_id -> {dow: count}
+        for r in cur.fetchall():
+            dow = item_dow.get(r['ITEM_ID'])
+            if dow is None:
+                continue
+            checked_map.setdefault(r['NTT_ID'], {})
+            checked_map[r['NTT_ID']][dow] = checked_map[r['NTT_ID']].get(dow, 0) + 1
 
         cur.execute('SELECT NTT_ID, DOW FROM CHOICHECKLIST_STAMP')
         stamped_map = {}
@@ -234,21 +245,22 @@ def mychecklist_admin_board():
     for m in members:
         days = []
         for dow in DOWS:
+            total = total_by_dow.get(dow, 0)
             checked = checked_map.get(m['NTT_ID'], {}).get(dow, 0)
             days.append({
                 'DOW': dow,
                 'checked': checked,
-                'total': total_items,
+                'total': total,
                 'stamped': dow in stamped_map.get(m['NTT_ID'], set()),
             })
         m['days'] = days
 
-    return jsonify({'totalItems': total_items, 'members': members, 'today': _today_dow()})
+    return jsonify({'members': members, 'today': _today_dow()})
 
 
 @mychecklist_bp.route('/mychecklist/admin/stamp', methods=['POST'])
 def mychecklist_admin_stamp_grant():
-    """당일(혹은 지정 요일) 전 항목을 체크한 사용자에게만 스탬프를 부여한다."""
+    """지정 요일 전 항목을 체크한 사용자에게만 스탬프를 부여한다."""
     guard = _require_admin()
     if guard:
         return guard
@@ -259,10 +271,11 @@ def mychecklist_admin_stamp_grant():
         return jsonify({'message': '잘못된 요청입니다.'}), 400
 
     with db_cursor(commit=True) as cur:
-        cur.execute('SELECT COUNT(*) AS n FROM CHOICHECKLIST_ITEM')
+        cur.execute('SELECT COUNT(*) AS n FROM CHOICHECKLIST_ITEM WHERE DOW=%s', (dow,))
         total = cur.fetchone()['n']
         cur.execute(
-            "SELECT COUNT(*) AS n FROM CHOICHECKLIST WHERE NTT_ID=%s AND DOW=%s AND CHECKED='Y'",
+            "SELECT COUNT(*) AS n FROM CHOICHECKLIST c JOIN CHOICHECKLIST_ITEM i ON i.ID=c.ITEM_ID"
+            " WHERE c.NTT_ID=%s AND i.DOW=%s AND c.CHECKED='Y'",
             (ntt_id, dow),
         )
         checked = cur.fetchone()['n']
@@ -304,13 +317,21 @@ def mychecklist_admin_close_week():
         cur.execute("SELECT NTT_ID FROM CHOIMEMBER WHERE ISMISSION='Y'")
         member_ids = [r['NTT_ID'] for r in cur.fetchall()]
 
-        cur.execute('SELECT COUNT(*) AS n FROM CHOICHECKLIST_ITEM')
-        total = cur.fetchone()['n']
+        cur.execute('SELECT ID, DOW FROM CHOICHECKLIST_ITEM')
+        item_dow = {}
+        total_by_dow = {}
+        for r in cur.fetchall():
+            item_dow[r['ID']] = r['DOW']
+            total_by_dow[r['DOW']] = total_by_dow.get(r['DOW'], 0) + 1
 
-        cur.execute("SELECT NTT_ID, DOW, COUNT(*) AS n FROM CHOICHECKLIST WHERE CHECKED='Y' GROUP BY NTT_ID, DOW")
+        cur.execute("SELECT NTT_ID, ITEM_ID FROM CHOICHECKLIST WHERE CHECKED='Y'")
         checked_map = {}
         for r in cur.fetchall():
-            checked_map.setdefault(r['NTT_ID'], {})[r['DOW']] = r['n']
+            dow = item_dow.get(r['ITEM_ID'])
+            if dow is None:
+                continue
+            checked_map.setdefault(r['NTT_ID'], {})
+            checked_map[r['NTT_ID']][dow] = checked_map[r['NTT_ID']].get(dow, 0) + 1
 
         cur.execute('SELECT NTT_ID, DOW FROM CHOICHECKLIST_STAMP')
         stamped_map = {}
@@ -319,6 +340,7 @@ def mychecklist_admin_close_week():
 
         for ntt_id in member_ids:
             for dow in DOWS:
+                total = total_by_dow.get(dow, 0)
                 checked = checked_map.get(ntt_id, {}).get(dow, 0)
                 stamped = 'Y' if dow in stamped_map.get(ntt_id, set()) else 'N'
                 cur.execute(
