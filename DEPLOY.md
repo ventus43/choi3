@@ -41,7 +41,7 @@ command -v pm2 || sudo npm install -g pm2
 # MySQL 확인 — 테이블/데이터가 들어있어야 함
 mysql -uchoi3 -p'tjdgh2814@@' choi3 -e "SHOW TABLES;"
 #  CHOIHIRE / CHOIMEETSCHEDULE / CHOIMEMBER 3개가 보여야 정상
-#  (스키마만 새로 만들 경우: mysql -uroot -p < mysql-init/01_schema.sql)
+#  (스키마 새로 만들거나 최신화할 경우: mysql -uroot -p < mysql-init/01_schema.sql — 전부 IF NOT EXISTS라 기존 DB에 재실행해도 안전)
 
 # 인증서 발급 (nginx 플러그인)
 sudo certbot certonly --nginx -d choi3.gventus.store
@@ -82,4 +82,4 @@ https://choi3.gventus.store/choi3-office/Y2hvaTM=
 | API 401 전부 | `OFFICE_PASSWORD` 시크릿과 입력한 비번 불일치 |
 | `nginx -t` 실패로 워크플로우 중단 | 인증서 미발급 (A-3의 certbot). 발급 후 재실행 |
 | 페이지는 뜨는데 데이터 안 나옴 | `/api/` 프록시 확인, `pm2 status`, MySQL 접속정보 시크릿 |
-| 새 컬럼/테이블 없음 (신규 DB) | `mysql -uroot -p < mysql-init/01_schema.sql` |
+| 새 컬럼/테이블 없음 (신규 DB이거나 스키마가 최신이 아님) | `mysql -uroot -p < mysql-init/01_schema.sql` (IF NOT EXISTS라 기존 DB에 재실행해도 안전) |

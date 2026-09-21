@@ -1,3 +1,7 @@
+-- choi3 전체 스키마 — 유일한 소스(단일 파일로 관리, 별도 migrations/ 없음).
+-- 모든 CREATE TABLE이 IF NOT EXISTS라 신규 DB든 이미 데이터가 있는 기존 DB(운영/로컬)든
+-- 그대로 재실행해도 안전 — 새 테이블이 추가되면 이 파일에 이어 쓰고, DB에는 그냥 다시 실행하면 됨.
+-- 실행: mysql -uroot -p < mysql-init/01_schema.sql  (docker-compose 로컬은 최초 기동 시 자동 실행)
 CREATE DATABASE IF NOT EXISTS choi3 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'choi3'@'%' IDENTIFIED BY 'tjdgh2814@@';
 GRANT ALL PRIVILEGES ON choi3.* TO 'choi3'@'%';

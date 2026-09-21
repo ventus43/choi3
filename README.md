@@ -27,16 +27,11 @@ API_TARGET=http://localhost:8081 npm run dev -- --host    # http://localhost:517
 - MySQL 데이터는 도커 볼륨(`choi3_mysql_data`)에 유지됨 — `docker compose down`(볼륨 삭제 없는 기본형)으로 컨테이너만 내려도 데이터는 보존됨
 - 포트가 이미 사용 중이면(과거 세션에서 떠 있던 프로세스 등) `lsof -i :8081` / `lsof -i :5174`로 확인 후 정리
 
-## DB 스키마 변경 이력 (마이그레이션)
+## DB 스키마
 
-`mysql-init/01_schema.sql`은 **신규 설치**(빈 DB) 전용 — 이미 데이터가 있는 DB(운영 EC2, 로컬 도커 볼륨)에는 `migrations/` 아래 개별 SQL을 수동 적용해야 한다. 적용 순서대로:
+`mysql-init/01_schema.sql` 한 파일로 전체 스키마를 관리한다(별도 `migrations/` 디렉터리 없음). 모든 `CREATE TABLE`이 `IF NOT EXISTS`라 신규 DB든 이미 데이터가 있는 기존 DB(운영 EC2, 로컬 도커 볼륨)든 그대로 재실행해도 안전 — 새 테이블/컬럼이 필요하면 이 파일에 이어서 작성하고, 적용은 신규·기존 구분 없이 `mysql -uroot -p < mysql-init/01_schema.sql` 재실행 한 번으로 끝난다.
 
-| 파일 | 내용 | 상태 |
-|---|---|---|
-| `migrations/2026-09-14_choireport.sql` | `CHOIREPORT` 테이블 신규 생성 (아래 7Ius67Cp 기능용) | 로컬 + 운영 모두 적용 완료(사용자 직접 실행) |
-| `migrations/2026-09-22_choichecklist.sql` | `CHOICHECKLIST_*` 5개 테이블 신규 생성 (아래 체크리스트 기능용) | 로컬만 적용, 운영 미반영 |
-
-> `CHOIMEETSCHEDULE.MEETYN` → `MEETST` 교체 마이그레이션은 로컬/운영 모두 적용 완료 후 파일을 정리했다 — 결과는 `mysql-init/01_schema.sql`의 `MEETST` 컬럼에 이미 반영돼 있음.
+> 컬럼 타입을 바꾸는 등 `IF NOT EXISTS`로 표현 안 되는 변경(예: 과거 `CHOIMEETSCHEDULE.MEETYN`→`MEETST` 교체)은 적용 후 별도 파일 없이 이 스키마 파일 자체를 새 상태로 고쳐 쓰고, 운영 DB엔 그 변경분만 수동으로 반영한다.
 
 ## 신규 기능: 인원관리 시스템(`/7Ius67Cp`)
 
@@ -112,5 +107,5 @@ API_TARGET=http://localhost:8081 npm run dev -- --host    # http://localhost:517
   - `/mychecklist/*` 전체가 `auth.EXEMPT_PREFIXES`에 등록되어 전역 백오피스 인증(`X-Office-Auth`) 검사 대상이 아니다.
 - **항목 구조**: 체크 항목이 **요일별로 완전히 분리**되어 있다(월요일 항목과 화요일 항목이 서로 다른 목록) — 관리자가 요일마다 항목을 추가/수정/삭제. 요일마다 기본 5개 빈 항목으로 시작.
 - **API** (`local-api/routes/mychecklist.py`): `GET /mychecklist/search`(이름 조회) · `GET/PUT /mychecklist/<id>`, `/mychecklist/<id>/check`(본인 자가 체크) · `GET /mychecklist/<id>/history`(이전주차요약) · `POST /mychecklist/admin/login` · `PUT /mychecklist/admin/password` · `GET/POST/PUT/DELETE /mychecklist/admin/items`(요일별 항목 CRUD) · `GET /mychecklist/admin/board`(구역별 현황) · `POST/DELETE /mychecklist/admin/stamp`(스탬프 부여/취소, 해당 요일 전 항목 체크 시에만 서버에서 허용) · `POST /mychecklist/admin/close-week`(요일별 요약을 이력에 남기고 초기화).
-- **저장**: `CHOICHECKLIST_ITEM`(요일별 항목) · `CHOICHECKLIST`(이번 주 체크 상태, 사용자 자가 토글) · `CHOICHECKLIST_STAMP`(이번 주 요일별 스탬프) · `CHOICHECKLIST_HISTORY`(주 마감 시 남는 요일별 요약: 체크 개수/전체/스탬프 여부) · `CHOICHECKLIST_ADMIN`(관리자 비밀번호 단일 행). 스키마: `migrations/2026-09-22_choichecklist.sql`(운영 DB엔 아직 수동 미적용) / `mysql-init/01_schema.sql`(신규 설치용, 동일 반영).
+- **저장**: `CHOICHECKLIST_ITEM`(요일별 항목) · `CHOICHECKLIST`(이번 주 체크 상태, 사용자 자가 토글) · `CHOICHECKLIST_STAMP`(이번 주 요일별 스탬프) · `CHOICHECKLIST_HISTORY`(주 마감 시 남는 요일별 요약: 체크 개수/전체/스탬프 여부) · `CHOICHECKLIST_ADMIN`(관리자 비밀번호 단일 행). 스키마는 `mysql-init/01_schema.sql`에 있음(운영 DB엔 아직 수동 미적용 — `mysql -uroot -p < mysql-init/01_schema.sql` 재실행하면 적용됨, `IF NOT EXISTS`라 기존 테이블엔 영향 없음).
 - **관리자 화면 구성**: 오늘 현황(전체 사명자/오늘 전항목 완료/오늘 스탬프 + 구역별 완료 칩) → 구역별 현황(인원×요일 표, 칸마다 체크개수 + 조건 충족 시 스탬프 버튼) → 날짜별 체크항목 관리(요일별 그리드, 항목마다 인라인 수정/삭제 + 요일별 추가 입력창). 비밀번호 변경 카드는 현재 숨김 처리(로직은 남아있음).
