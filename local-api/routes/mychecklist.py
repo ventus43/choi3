@@ -62,7 +62,9 @@ def mychecklist_detail(ntt_id):
         if not member:
             return jsonify({'message': '대상을 찾을 수 없습니다.'}), 404
 
-        cur.execute('SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM ORDER BY DOW, SORT_ORDER, ID')
+        # 빈 라벨(관리자가 아직 채우지 않은 기본 슬롯)은 사용자에게 체크할 게 없으니 아예 안 보여준다
+        # — total 계산에도 빠져야 나머지 항목만으로도 스탬프(전체 완료) 달성이 가능해진다.
+        cur.execute("SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM WHERE LABEL<>'' ORDER BY DOW, SORT_ORDER, ID")
         items = cur.fetchall()
 
         cur.execute('SELECT ITEM_ID, CHECKED FROM CHOICHECKLIST WHERE NTT_ID=%s', (ntt_id,))
@@ -221,7 +223,7 @@ def mychecklist_admin_board():
         cur.execute("SELECT NTT_ID, GU, NAME FROM CHOIMEMBER WHERE ISMISSION='Y' ORDER BY GU, NTT_ID")
         members = cur.fetchall()
 
-        cur.execute('SELECT ID, DOW FROM CHOICHECKLIST_ITEM')
+        cur.execute("SELECT ID, DOW FROM CHOICHECKLIST_ITEM WHERE LABEL<>''")
         item_dow = {}          # item_id -> dow
         total_by_dow = {}      # dow -> 항목 개수
         for r in cur.fetchall():
@@ -271,11 +273,12 @@ def mychecklist_admin_stamp_grant():
         return jsonify({'message': '잘못된 요청입니다.'}), 400
 
     with db_cursor(commit=True) as cur:
-        cur.execute('SELECT COUNT(*) AS n FROM CHOICHECKLIST_ITEM WHERE DOW=%s', (dow,))
+        # 빈 라벨 항목은 total에서 제외 — mychecklist_detail에서도 사용자에게 안 보여주므로 체크 대상이 아니다.
+        cur.execute("SELECT COUNT(*) AS n FROM CHOICHECKLIST_ITEM WHERE DOW=%s AND LABEL<>''", (dow,))
         total = cur.fetchone()['n']
         cur.execute(
             "SELECT COUNT(*) AS n FROM CHOICHECKLIST c JOIN CHOICHECKLIST_ITEM i ON i.ID=c.ITEM_ID"
-            " WHERE c.NTT_ID=%s AND i.DOW=%s AND c.CHECKED='Y'",
+            " WHERE c.NTT_ID=%s AND i.DOW=%s AND i.LABEL<>'' AND c.CHECKED='Y'",
             (ntt_id, dow),
         )
         checked = cur.fetchone()['n']
@@ -317,7 +320,7 @@ def mychecklist_admin_close_week():
         cur.execute("SELECT NTT_ID FROM CHOIMEMBER WHERE ISMISSION='Y'")
         member_ids = [r['NTT_ID'] for r in cur.fetchall()]
 
-        cur.execute('SELECT ID, DOW FROM CHOICHECKLIST_ITEM')
+        cur.execute("SELECT ID, DOW FROM CHOICHECKLIST_ITEM WHERE LABEL<>''")
         item_dow = {}
         total_by_dow = {}
         for r in cur.fetchall():
