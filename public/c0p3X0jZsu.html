@@ -95,8 +95,25 @@
   .user-day-card{background:#fafbfc; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px;}
   .user-day-card.today{background:var(--accent-soft); border-color:var(--accent);}
   .user-day-head{display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; margin-bottom:8px;}
-  .user-item-row{display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13.5px; cursor:pointer;}
-  .user-item-row input{width:18px; height:18px; accent-color:var(--accent); cursor:pointer;}
+
+  .item-tag-grid{display:flex; flex-direction:column; gap:8px;}
+  @media (min-width:640px){
+    .item-tag-grid{display:grid; grid-template-columns:repeat(2,1fr);}
+  }
+  .item-tag{
+    display:block; padding:10px 14px; border:1px solid var(--line); border-radius:10px;
+    background:#fff; color:var(--ink); font-size:13.5px; font-weight:600;
+    text-decoration:none; cursor:pointer; transition:background .15s,border-color .15s,color .15s;
+  }
+  .item-tag.is-checked{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .item-tag.is-checked::before{content:"✓ ";}
+
+  .other-days{margin-top:14px;}
+  .other-days summary{cursor:pointer; font-size:13px; font-weight:700; color:var(--accent); padding:8px 0; list-style:none;}
+  .other-days summary::-webkit-details-marker{display:none;}
+  .other-days summary::before{content:"▸ ";}
+  .other-days[open] summary::before{content:"▾ ";}
+  .other-days .user-day-card{margin-top:10px;}
 
   .fab{
     position:fixed; right:16px; bottom:16px; z-index:20;
@@ -275,41 +292,48 @@ loginInput.addEventListener('keydown', e => { if(e.key === 'Enter') runLogin(); 
 // ── 사용자 화면 ──
 let userState = null; // { nttId, items, checkedSet, today, stamped }
 
+function dayCardHtml(dow, dayItems, checkedSet, isToday, isStamped){
+  return `
+    <div class="user-day-card ${isToday ? 'today' : ''}">
+      <div class="user-day-head">
+        <span>${DOW_LABEL[dow]}요일${isToday ? ' · 오늘' : ''}</span>
+        ${isStamped ? '<span class="stamp-icon">★ 스탬프</span>' : ''}
+      </div>
+      ${dayItems.length === 0
+        ? '<div class="note">등록된 항목이 없습니다.</div>'
+        : `<div class="item-tag-grid">${dayItems.map(it => `
+            <a href="#" class="item-tag ${checkedSet.has(it.ID) ? 'is-checked' : ''}" data-item="${it.ID}">${it.LABEL || '(항목 미설정)'}</a>`).join('')}</div>`}
+    </div>`;
+}
+
 function renderUserTable(){
   const { items, checkedSet, today, stamped } = userState;
   const wrap = document.getElementById('userTableWrap');
   const byDow = new Map(DOWS.map(d => [d, []]));
   items.forEach(it => byDow.get(it.DOW)?.push(it));
 
-  wrap.innerHTML = DOWS.map(dow => {
-    const dayItems = byDow.get(dow) || [];
-    const isToday = dow === today;
-    const isStamped = stamped.includes(dow);
-    return `
-      <div class="user-day-card ${isToday ? 'today' : ''}">
-        <div class="user-day-head">
-          <span>${DOW_LABEL[dow]}요일${isToday ? ' · 오늘' : ''}</span>
-          ${isStamped ? '<span class="stamp-icon">★ 스탬프</span>' : ''}
-        </div>
-        ${dayItems.length === 0
-          ? '<div class="note">등록된 항목이 없습니다.</div>'
-          : dayItems.map(it => `
-            <label class="user-item-row">
-              <input type="checkbox" class="chk" data-item="${it.ID}" ${checkedSet.has(it.ID) ? 'checked' : ''}>
-              <span>${it.LABEL || '(항목 미설정)'}</span>
-            </label>`).join('')}
-      </div>`;
-  }).join('');
+  const otherDows = DOWS.filter(d => d !== today);
 
-  wrap.querySelectorAll('.chk').forEach(box => {
-    box.addEventListener('change', () => toggleUserCheck(box));
+  wrap.innerHTML = `
+    ${dayCardHtml(today, byDow.get(today) || [], checkedSet, true, stamped.includes(today))}
+    <details class="other-days">
+      <summary>다른 요일 체크 (이번 주 일요일까지)</summary>
+      ${otherDows.map(dow => dayCardHtml(dow, byDow.get(dow) || [], checkedSet, false, stamped.includes(dow))).join('')}
+    </details>`;
+
+  wrap.querySelectorAll('.item-tag').forEach(tag => {
+    tag.addEventListener('click', e => {
+      e.preventDefault();
+      toggleUserCheck(tag);
+    });
   });
 }
 
-async function toggleUserCheck(box){
-  const itemId = Number(box.dataset.item);
-  const next = box.checked;
-  box.disabled = true;
+async function toggleUserCheck(tag){
+  const itemId = Number(tag.dataset.item);
+  const next = !tag.classList.contains('is-checked');
+  tag.classList.toggle('is-checked', next);
+  tag.style.pointerEvents = 'none';
   try{
     await apiCall(`/mychecklist/${userState.nttId}/check`, {
       method:'PUT',
@@ -317,10 +341,10 @@ async function toggleUserCheck(box){
     });
     if(next) userState.checkedSet.add(itemId); else userState.checkedSet.delete(itemId);
   }catch(e){
-    box.checked = !next;
+    tag.classList.toggle('is-checked', !next);
     alert(`저장 실패: ${e.message}`);
   }finally{
-    box.disabled = false;
+    tag.style.pointerEvents = '';
   }
 }
 
