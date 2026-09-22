@@ -2,6 +2,8 @@
 
 섭외자 관리 백오피스. 별도 배포되는 하위 프로젝트로, `gventus_web` 루트 저장소와는 git 이력이 분리되어 있다(`.gitignore`로 제외됨). 배포 방법·인프라 구성은 [DEPLOY.md](./DEPLOY.md) 참고.
 
+`/hub`(`public/hub.html`)에서 이 프로젝트의 화면들(관리 시스템·7Ius67Cp·체크리스트)을 한 페이지에서 링크로 찾아볼 수 있다.
+
 ## 로컬 개발 환경 (2026-09-14 기준 확정된 방식)
 
 MySQL만 Docker로 띄우고, Vite/API는 로컬에서 네이티브로 실행한다 — 세 개 다 도커로 띄우던 이전 방식(`docker-compose.yml`의 web/api 서비스)에서 전환됨.
