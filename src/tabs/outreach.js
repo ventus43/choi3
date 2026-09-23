@@ -230,8 +230,13 @@ function personForm(e) {
       ${pfNameField(nameKey, label, e[nameKey])}
     </div>`).join('');
   const meetVal = String(e.meetCn ?? '').replace(/"/g, '&quot;');
+  const nameVal = String(e.name ?? '').replace(/"/g, '&quot;');
   return `
     <div class="person-form" id="person-form-${e.id}" style="display:none;">
+      <div class="pf-row">
+        <span class="pf-role">이름</span>
+        <input type="text" class="pf-name" placeholder="이름" data-pf="name" value="${nameVal}">
+      </div>
       ${rows}
       <div class="pf-row">
         <span class="pf-role">시간·장소</span>
@@ -398,6 +403,11 @@ async function handlePersonSave(id) {
 
   const patch = {};
   form.querySelectorAll('[data-pf]').forEach((el) => { patch[el.dataset.pf] = el.value.trim(); });
+
+  if ('name' in patch && !patch.name) {
+    alert('이름은 비워둘 수 없습니다.');
+    return;
+  }
 
   const prev = { ...entry };
   await optimistic({
