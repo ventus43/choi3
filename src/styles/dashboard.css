@@ -1,1 +1,79 @@
-.dashboard-surface{position:relative;min-height:360px}.dashboard-blind{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding:20px;background:rgba(250,247,239,.72);backdrop-filter:blur(7px)}.dashboard-blind[hidden]{display:none}.dashboard-unlock{width:min(100%,320px);display:grid;gap:9px;padding:20px;border:1px solid var(--border);border-radius:var(--radius);background:rgba(255,255,255,.96);box-shadow:var(--shadow)}.dashboard-unlock strong{font-size:17px}.dashboard-unlock span{font-size:12px;color:var(--ink-soft)}.dashboard-unlock p{min-height:18px;margin:0;color:var(--danger);font-size:12px}.dashboard-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dashboard-stat{padding:16px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)}.dashboard-stat span{display:block;font-size:12px;color:var(--ink-soft)}.dashboard-stat strong{display:block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--primary)}.dashboard-stat.pending strong{color:var(--accent)}.dashboard-week-section,.dashboard-zone-section{margin-top:22px}.dashboard-week-section h3,.dashboard-zone-section h3{font-size:14px;margin:0}.dashboard-week-section>p,.dashboard-zone-section>p{margin:3px 0 10px;color:var(--ink-soft);font-size:11px}.dashboard-week-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.dashboard-week{padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)}.dashboard-week.current{border-color:var(--primary);box-shadow:inset 0 2px 0 var(--primary)}.dashboard-week time{display:block;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft)}.dashboard-week dl,.dashboard-zone dl{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:9px 0 0}.dashboard-week dt,.dashboard-zone dt{font-size:10px;color:var(--ink-soft)}.dashboard-week dd,.dashboard-zone dd{margin:2px 0 0;font-family:'JetBrains Mono',monospace;font-weight:800}.dashboard-zone-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.dashboard-zone{padding:13px;border:1px solid var(--border);border-radius:var(--radius)}.dashboard-zone h4{margin:0;font-size:13px}@media(max-width:640px){.dashboard-stats,.dashboard-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-stat{padding:14px}.dashboard-stat strong{font-size:24px}}
+/* ---------- 운영 대시보드 ---------- */
+.dashboard-surface{ position:relative; min-height:360px; }
+
+.dashboard-today-section{ margin-top:14px; }
+.dashboard-week-section,
+.dashboard-funnel-section{ margin-top:22px; }
+.dashboard-today-section h3,
+.dashboard-week-section h3,
+.dashboard-funnel-section h3{ font-size:14px; margin:0; }
+.dashboard-week-section>p,
+.dashboard-funnel-section>p{ margin:3px 0 10px; color:var(--ink-soft); font-size:11px; }
+
+/* ── 상단 통계 카드(오늘 3개 / 주간 2개) ── */
+.dashboard-stats{ display:grid; gap:12px; margin-top:8px; }
+.dashboard-stats-3{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+.dashboard-stats-2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dashboard-stat{
+  padding:16px; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface-2);
+}
+.dashboard-stat span{ display:block; font-size:12px; color:var(--ink-soft); }
+.dashboard-stat strong{
+  display:block; margin-top:4px; font-family:'JetBrains Mono',monospace;
+  font-size:28px; color:var(--primary);
+}
+.dashboard-stat.pending strong{ color:var(--accent); }
+.dashboard-stat.success strong{ color:var(--primary-light); }
+
+/* ── 주간 S2·S3·S4 명단 보드 ── */
+.dashboard-status-board{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px; margin-top:12px;
+}
+.dashboard-status-card{
+  padding:12px; border:1px solid var(--border); border-radius:var(--radius);
+}
+.dashboard-status-card h4{
+  margin:0 0 8px; font-size:13px; display:flex; align-items:center; gap:6px;
+}
+.dashboard-status-count{
+  font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft);
+}
+.dashboard-status-card ul{ margin:0; padding:0; list-style:none; display:grid; gap:4px; }
+.dashboard-status-card li{
+  font-size:12px; line-height:1.4; padding:3px 8px; border-radius:6px; background:var(--surface-2);
+}
+.dashboard-status-empty{ margin:0; font-size:12px; color:var(--ink-soft); }
+
+/* ── 전체 데이터 퍼널 ── */
+.dashboard-funnel{
+  display:flex; align-items:stretch; gap:6px; overflow-x:auto; padding-bottom:2px;
+}
+.dashboard-funnel-stage{
+  flex:1 1 0; min-width:104px; padding:14px 10px; text-align:center;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-2);
+}
+.dashboard-funnel-label{ display:block; font-size:11px; color:var(--ink-soft); }
+.dashboard-funnel-count{
+  display:block; margin-top:6px; font-family:'JetBrains Mono',monospace;
+  font-size:22px; color:var(--primary);
+}
+.dashboard-funnel-count small{ margin-left:2px; font-size:11px; font-weight:400; color:var(--ink-soft); }
+.dashboard-funnel-pct{
+  display:block; margin-top:4px; min-height:15px; font-family:'JetBrains Mono',monospace;
+  font-size:12px; font-weight:800; color:var(--accent);
+}
+.dashboard-funnel-arrow{
+  flex:0 0 auto; display:flex; align-items:center; padding:0 2px;
+  color:var(--border); font-size:16px;
+}
+
+@media(max-width:640px){
+  .dashboard-stats-3,
+  .dashboard-stats-2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .dashboard-stat{ padding:14px; }
+  .dashboard-stat strong{ font-size:24px; }
+  .dashboard-funnel{ flex-direction:column; }
+  .dashboard-funnel-arrow{ justify-content:center; padding:2px 0; transform:rotate(90deg); }
+}
