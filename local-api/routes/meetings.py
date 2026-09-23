@@ -81,6 +81,16 @@ def meeting_create(hire_id):
         if first is not None and not first['MEET_DT']:
             return jsonify({'message': '첫만남 일정에 날짜가 없습니다. 첫만남 일정을 먼저 수정해 주세요.'}), 400
 
+        # 같은 대상자는 첫만남/단계만남 구분 없이 같은 날짜에 두 건 이상 등록할 수 없음.
+        meet_dt = body.get('meetDt') or None
+        if meet_dt:
+            cur.execute(
+                "SELECT 1 FROM CHOIMEETSCHEDULE WHERE HIREID=%s AND MEET_DT=%s AND DEL_YN='N' LIMIT 1",
+                (hire_id, meet_dt),
+            )
+            if cur.fetchone():
+                return jsonify({'message': f'{meet_dt} 에 이미 만남 일정이 등록되어 있습니다.'}), 400
+
         seq = body.get('seq')
         if not seq:
             cur.execute(
@@ -112,15 +122,27 @@ def meeting_update(mid):
         return jsonify({'message': '변경 항목 없음'}), 400
     vals.append(mid)
     with db_cursor(commit=True) as cur:
-        cur.execute(f'UPDATE CHOIMEETSCHEDULE SET {",".join(sets)} WHERE NTT_ID=%s', vals)
-        # 첫만남(SEQ=1) 날짜 변경 시, 섭외자 등록 시점에 CHOIHIRE 에 복제해둔 MEET_DATE 도 함께 맞춘다.
-        # 안 맞추면 섭외자 목록/TM현황 탭엔 옛 날짜가 그대로 남아 일정 목록 탭과 서로 다른 날짜가 보임.
+        row = None
         if 'meetDt' in body:
             cur.execute('SELECT HIREID, SEQ FROM CHOIMEETSCHEDULE WHERE NTT_ID=%s', (mid,))
             row = cur.fetchone()
-            if row and row['SEQ'] == 1:
-                cur.execute('UPDATE CHOIHIRE SET MEET_DATE=%s WHERE NTT_ID=%s',
-                             (body.get('meetDt') or None, row['HIREID']))
+            meet_dt = body.get('meetDt') or None
+            # 같은 대상자는 첫만남/단계만남 구분 없이 같은 날짜에 두 건 이상 등록할 수 없음 (자기 자신은 제외).
+            if meet_dt and row:
+                cur.execute(
+                    "SELECT 1 FROM CHOIMEETSCHEDULE"
+                    " WHERE HIREID=%s AND MEET_DT=%s AND DEL_YN='N' AND NTT_ID<>%s LIMIT 1",
+                    (row['HIREID'], meet_dt, mid),
+                )
+                if cur.fetchone():
+                    return jsonify({'message': f'{meet_dt} 에 이미 만남 일정이 등록되어 있습니다.'}), 400
+
+        cur.execute(f'UPDATE CHOIMEETSCHEDULE SET {",".join(sets)} WHERE NTT_ID=%s', vals)
+        # 첫만남(SEQ=1) 날짜 변경 시, 섭외자 등록 시점에 CHOIHIRE 에 복제해둔 MEET_DATE 도 함께 맞춘다.
+        # 안 맞추면 섭외자 목록/TM현황 탭엔 옛 날짜가 그대로 남아 일정 목록 탭과 서로 다른 날짜가 보임.
+        if row and row['SEQ'] == 1:
+            cur.execute('UPDATE CHOIHIRE SET MEET_DATE=%s WHERE NTT_ID=%s',
+                         (body.get('meetDt') or None, row['HIREID']))
         return jsonify({'ok': True})
 
 

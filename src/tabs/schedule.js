@@ -412,8 +412,9 @@ async function handleSave() {
     els.saveBtn.disabled = false;
     return;
   }
-  if (personMeetings.some((m) => m.meetDt === meetDt)
-      && !confirm(`${meetDt} 에 이미 만남일정이 등록되어 있습니다. 정말 등록하시겠습니까?`)) {
+  if (personMeetings.some((m) => m.meetDt === meetDt)) {
+    els.error.textContent = `${meetDt} 에 이미 만남 일정이 등록되어 있습니다. 첫만남/단계만남이 달라도 같은 날짜엔 등록할 수 없습니다.`;
+    els.error.classList.add('show');
     els.saveBtn.disabled = false;
     return;
   }
