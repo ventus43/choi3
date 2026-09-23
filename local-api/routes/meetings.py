@@ -113,6 +113,14 @@ def meeting_update(mid):
     vals.append(mid)
     with db_cursor(commit=True) as cur:
         cur.execute(f'UPDATE CHOIMEETSCHEDULE SET {",".join(sets)} WHERE NTT_ID=%s', vals)
+        # 첫만남(SEQ=1) 날짜 변경 시, 섭외자 등록 시점에 CHOIHIRE 에 복제해둔 MEET_DATE 도 함께 맞춘다.
+        # 안 맞추면 섭외자 목록/TM현황 탭엔 옛 날짜가 그대로 남아 일정 목록 탭과 서로 다른 날짜가 보임.
+        if 'meetDt' in body:
+            cur.execute('SELECT HIREID, SEQ FROM CHOIMEETSCHEDULE WHERE NTT_ID=%s', (mid,))
+            row = cur.fetchone()
+            if row and row['SEQ'] == 1:
+                cur.execute('UPDATE CHOIHIRE SET MEET_DATE=%s WHERE NTT_ID=%s',
+                             (body.get('meetDt') or None, row['HIREID']))
         return jsonify({'ok': True})
 
 
