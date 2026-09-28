@@ -22,10 +22,13 @@ from db import db_cursor
 mychecklist_bp = Blueprint('mychecklist', __name__)
 
 DOWS = (1, 2, 3, 4, 5, 6, 7)   # 1=월 ... 7=일
+_KST = datetime.timezone(datetime.timedelta(hours=9))
 
 
 def _today_dow():
-    return datetime.date.today().isoweekday()
+    # 서버 시스템 시계가 UTC 라도(EC2 기본값) KST 로 판정 — db.py 의 SET time_zone='+09:00' 과 동일 기준.
+    # 순수 date.today() 를 쓰면 자정~오전 9시(KST) 사이 하루 전 요일이 "오늘"로 잘못 나옴.
+    return datetime.datetime.now(_KST).date().isoweekday()
 
 
 def _require_admin():
