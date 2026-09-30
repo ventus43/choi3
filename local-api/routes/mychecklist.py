@@ -263,6 +263,32 @@ def mychecklist_admin_board():
     return jsonify({'members': members, 'today': _today_dow()})
 
 
+@mychecklist_bp.route('/mychecklist/admin/history-range', methods=['GET'])
+def mychecklist_admin_history_range():
+    """기간(from~to) 달성 현황 — 마감(close-week)된 주차만 CHOICHECKLIST_HISTORY 에 쌓이므로
+    아직 마감 전인 이번 주/미래 기간은 집계에서 빠진다. 요일 실제 날짜 = WEEK_START(그 주 월요일) + (DOW-1)일."""
+    guard = _require_admin()
+    if guard:
+        return guard
+    frm = (request.args.get('from') or '').strip()
+    to = (request.args.get('to') or '').strip()
+    if not frm or not to:
+        return jsonify({'message': '조회 기간(from, to)을 지정해 주세요.'}), 400
+    with db_cursor() as cur:
+        cur.execute(
+            "SELECT h.NTT_ID, m.NAME, m.GU,"
+            "       SUM(h.CHECKED_COUNT) AS CHECKED_SUM, SUM(h.TOTAL_COUNT) AS TOTAL_SUM,"
+            "       SUM(h.STAMPED='Y') AS STAMP_COUNT, COUNT(*) AS DAY_COUNT"
+            " FROM CHOICHECKLIST_HISTORY h"
+            " JOIN CHOIMEMBER m ON m.NTT_ID = h.NTT_ID"
+            " WHERE DATE_ADD(h.WEEK_START, INTERVAL (h.DOW - 1) DAY) BETWEEN %s AND %s"
+            " GROUP BY h.NTT_ID, m.NAME, m.GU"
+            " ORDER BY m.GU, m.NAME",
+            (frm, to),
+        )
+        return jsonify(cur.fetchall())
+
+
 @mychecklist_bp.route('/mychecklist/admin/stamp', methods=['POST'])
 def mychecklist_admin_stamp_grant():
     """지정 요일 전 항목을 체크한 사용자에게만 스탬프를 부여한다."""

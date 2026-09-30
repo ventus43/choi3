@@ -25,7 +25,7 @@
     padding:14px; margin-bottom:16px;
   }
   .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-  input[type=text], input[type=password]{
+  input[type=text], input[type=password], input[type=date]{
     flex:1 1 160px; min-width:0; border:1px solid var(--line); border-radius:8px;
     padding:9px 10px; font-size:14px; font-family:inherit;
   }
@@ -173,6 +173,17 @@
       <button type="button" class="btn danger sm" id="adminCloseWeekBtn">이번 주 마감</button>
     </div>
     <div id="adminBoard"></div>
+  </div>
+
+  <div class="card">
+    <h2>기간별 달성 현황</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input type="date" id="historyRangeFrom" value="2026-10-01">
+      <span>~</span>
+      <input type="date" id="historyRangeTo" value="2026-10-30">
+      <button type="button" class="btn sm" id="historyRangeSearchBtn">조회</button>
+    </div>
+    <div id="historyRangeResult" class="note">조회 기간을 선택해 주세요.</div>
   </div>
 
   <div class="card">
@@ -630,6 +641,41 @@ async function loadAdmin(){
   }
   loadAdminBoard();
 }
+
+function renderHistoryRange(rows){
+  const el = document.getElementById('historyRangeResult');
+  if(!rows.length){
+    el.innerHTML = '<div class="note">해당 기간에 마감된 주차 기록이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>구역</th><th>이름</th><th>체크율</th><th>스탬프</th></tr></thead>
+      <tbody>
+        ${rows.map(r => {
+          const rate = r.TOTAL_SUM > 0 ? Math.round((r.CHECKED_SUM / r.TOTAL_SUM) * 100) : 0;
+          return `<tr>
+            <td>${r.GU ?? ''}</td>
+            <td class="item-name">${r.NAME}</td>
+            <td>${rate}% <span style="color:var(--sub); font-size:11px;">(${r.CHECKED_SUM}/${r.TOTAL_SUM})</span></td>
+            <td>${r.STAMP_COUNT} / ${r.DAY_COUNT}일</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+document.getElementById('historyRangeSearchBtn').addEventListener('click', async () => {
+  const from = document.getElementById('historyRangeFrom').value;
+  const to = document.getElementById('historyRangeTo').value;
+  const el = document.getElementById('historyRangeResult');
+  if(!from || !to){ el.innerHTML = '<div class="note">조회 기간을 선택해 주세요.</div>'; return; }
+  el.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try{
+    const rows = await adminGet(`/mychecklist/admin/history-range?from=${from}&to=${to}`);
+    renderHistoryRange(rows);
+  }catch(e){ el.innerHTML = `<div class="note">${e.message}</div>`; }
+});
 
 document.getElementById('adminLogoutBtn').addEventListener('click', () => {
   localStorage.removeItem(TOKEN_KEY);
