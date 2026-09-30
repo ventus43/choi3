@@ -2,8 +2,14 @@
 독립 공개 페이지(public/c0p3X0jZsu.html) 전용 API — 본프로젝트 백오피스 인증(X-Office-Auth)과
 완전히 분리되어 있다(auth.EXEMPT_PREFIXES 에 등록, 이 블루프린트 전체가 무인증으로 열려 있음).
 
-체크 항목은 요일별로 완전히 분리돼 있다 — 항목(CHOICHECKLIST_ITEM)이 자기 DOW를 갖고 있어
-CHOICHECKLIST(체크 상태)엔 DOW 컬럼이 없다(ITEM_ID로 요일이 이미 정해짐).
+체크 항목은 요일별로 완전히 분리돼 있다 — 항목(CHOICHECKLIST_ITEM)이 자기 DOW를 갖고 있다.
+
+체크/스탬프는 실제 캘린더 날짜(CHK_DATE/STAMP_DATE) 기준으로 기록된다 — "이번 주 마감" 같은
+수동 초기화가 필요 없다. 화면엔 "이번 주(월~일)"가 아무 요일이나 체크할 수 있게 나오지만
+(다른 요일 체크 = 캐치업), 저장될 땐 그 요일이 속한 이번 주의 실제 날짜로 기록되고, 다음 주가
+되면 같은 요일이라도 날짜가 달라져 자동으로 새로 시작된다. "오늘"의 기준은 KST 이지만 하루
+경계는 자정이 아니라 오전 10시다(그 전엔 전날로 취급) — 이른 아침 항목(예: 아침 기도회) 때문에
+자정 컷오프면 애매해지는 걸 피하기 위함.
 
 접근 두 갈래:
   - 사용자: 이름을 입력해 본인을 찾고, 본인 체크를 직접 토글한다. 인증 없음.
@@ -23,12 +29,31 @@ mychecklist_bp = Blueprint('mychecklist', __name__)
 
 DOWS = (1, 2, 3, 4, 5, 6, 7)   # 1=월 ... 7=일
 _KST = datetime.timezone(datetime.timedelta(hours=9))
+_DAY_CUTOFF_HOUR = 10   # KST 오전 10시 이전은 "전날"로 취급
+
+
+def _checklist_today():
+    """체크리스트 기준 '오늘' 날짜 — KST, 오전 10시 컷오프."""
+    now = datetime.datetime.now(_KST)
+    d = now.date()
+    if now.hour < _DAY_CUTOFF_HOUR:
+        d -= datetime.timedelta(days=1)
+    return d
+
+
+def _week_start(d):
+    """d가 속한 주의 월요일."""
+    return d - datetime.timedelta(days=d.weekday())
+
+
+def _date_for_dow(dow, base_date=None):
+    """base_date(기본: 체크리스트 기준 오늘)가 속한 주 안에서 그 요일(dow)의 실제 날짜."""
+    base = base_date or _checklist_today()
+    return _week_start(base) + datetime.timedelta(days=dow - 1)
 
 
 def _today_dow():
-    # 서버 시스템 시계가 UTC 라도(EC2 기본값) KST 로 판정 — db.py 의 SET time_zone='+09:00' 과 동일 기준.
-    # 순수 date.today() 를 쓰면 자정~오전 9시(KST) 사이 하루 전 요일이 "오늘"로 잘못 나옴.
-    return datetime.datetime.now(_KST).date().isoweekday()
+    return _checklist_today().isoweekday()
 
 
 def _require_admin():
@@ -70,10 +95,19 @@ def mychecklist_detail(ntt_id):
         cur.execute("SELECT ID, DOW, LABEL, SORT_ORDER FROM CHOICHECKLIST_ITEM WHERE LABEL<>'' ORDER BY DOW, SORT_ORDER, ID")
         items = cur.fetchall()
 
-        cur.execute('SELECT ITEM_ID, CHECKED FROM CHOICHECKLIST WHERE NTT_ID=%s', (ntt_id,))
+        week_dates = [_date_for_dow(dow) for dow in DOWS]
+        placeholders = ','.join(['%s'] * len(week_dates))
+
+        cur.execute(
+            f'SELECT ITEM_ID, CHECKED FROM CHOICHECKLIST WHERE NTT_ID=%s AND CHK_DATE IN ({placeholders})',
+            (ntt_id, *week_dates),
+        )
         state = cur.fetchall()
 
-        cur.execute('SELECT DOW FROM CHOICHECKLIST_STAMP WHERE NTT_ID=%s', (ntt_id,))
+        cur.execute(
+            f'SELECT DOW FROM CHOICHECKLIST_STAMP WHERE NTT_ID=%s AND STAMP_DATE IN ({placeholders})',
+            (ntt_id, *week_dates),
+        )
         stamped = [r['DOW'] for r in cur.fetchall()]
 
         return jsonify({'member': member, 'items': items, 'state': state, 'stamped': stamped, 'today': _today_dow()})
@@ -81,7 +115,8 @@ def mychecklist_detail(ntt_id):
 
 @mychecklist_bp.route('/mychecklist/<int:ntt_id>/check', methods=['PUT'])
 def mychecklist_check(ntt_id):
-    """본인 체크 토글 — 무인증(이름으로 본인을 찾은 사용자가 직접 체크)."""
+    """본인 체크 토글 — 무인증(이름으로 본인을 찾은 사용자가 직접 체크).
+    항목의 요일(DOW)이 속한 이번 주의 실제 날짜(CHK_DATE)로 기록한다."""
     body = request.get_json(silent=True) or {}
     item_id = body.get('ITEM_ID')
     checked = 'Y' if body.get('CHECKED') else 'N'
@@ -92,39 +127,60 @@ def mychecklist_check(ntt_id):
         cur.execute("SELECT NTT_ID FROM CHOIMEMBER WHERE ISMISSION='Y' AND NTT_ID=%s", (ntt_id,))
         if not cur.fetchone():
             return jsonify({'message': '대상을 찾을 수 없습니다.'}), 404
-        cur.execute('SELECT 1 FROM CHOICHECKLIST_ITEM WHERE ID=%s', (item_id,))
-        if not cur.fetchone():
+        cur.execute('SELECT DOW FROM CHOICHECKLIST_ITEM WHERE ID=%s', (item_id,))
+        item = cur.fetchone()
+        if not item:
             return jsonify({'message': '존재하지 않는 항목입니다.'}), 400
+        chk_date = _date_for_dow(item['DOW'])
 
         cur.execute(
-            'INSERT INTO CHOICHECKLIST (NTT_ID, ITEM_ID, CHECKED) VALUES (%s,%s,%s)'
+            'INSERT INTO CHOICHECKLIST (NTT_ID, ITEM_ID, CHK_DATE, CHECKED) VALUES (%s,%s,%s,%s)'
             ' ON DUPLICATE KEY UPDATE CHECKED=%s',
-            (ntt_id, item_id, checked, checked),
+            (ntt_id, item_id, chk_date, checked, checked),
         )
         return jsonify({'ok': True})
 
 
 @mychecklist_bp.route('/mychecklist/<int:ntt_id>/history', methods=['GET'])
 def mychecklist_history(ntt_id):
-    """'이전주차요약' 버튼용 — 가장 최근에 마감된 주의 요일별 요약(체크 개수/전체/스탬프)."""
+    """'이전주차요약' 버튼용 — 지난주(이번 주 이전 월~일) 요일별 요약(체크 개수/전체/스탬프).
+    체크/스탬프가 이제 날짜 기반이라 마감 여부와 무관하게 항상 계산할 수 있다."""
+    last_week_start = _week_start(_checklist_today()) - datetime.timedelta(days=7)
+    week_dates = [last_week_start + datetime.timedelta(days=i) for i in range(7)]
+    placeholders = ','.join(['%s'] * 7)
+
     with db_cursor() as cur:
-        cur.execute(
-            'SELECT WEEK_START FROM CHOICHECKLIST_HISTORY WHERE NTT_ID=%s'
-            ' ORDER BY WEEK_START DESC LIMIT 1',
-            (ntt_id,),
-        )
-        row = cur.fetchone()
-        if not row:
-            return jsonify({'weekStart': None, 'days': []})
-        week_start = row['WEEK_START']
+        cur.execute("SELECT ID, DOW FROM CHOICHECKLIST_ITEM WHERE LABEL<>''")
+        item_dow = {}
+        total_by_dow = {}
+        for r in cur.fetchall():
+            item_dow[r['ID']] = r['DOW']
+            total_by_dow[r['DOW']] = total_by_dow.get(r['DOW'], 0) + 1
 
         cur.execute(
-            'SELECT DOW, CHECKED_COUNT, TOTAL_COUNT, STAMPED FROM CHOICHECKLIST_HISTORY'
-            ' WHERE NTT_ID=%s AND WEEK_START=%s ORDER BY DOW',
-            (ntt_id, week_start),
+            f"SELECT ITEM_ID FROM CHOICHECKLIST WHERE NTT_ID=%s AND CHECKED='Y' AND CHK_DATE IN ({placeholders})",
+            (ntt_id, *week_dates),
         )
-        days = cur.fetchall()
-        return jsonify({'weekStart': week_start.strftime('%Y-%m-%d'), 'days': days})
+        checked_by_dow = {}
+        for r in cur.fetchall():
+            dow = item_dow.get(r['ITEM_ID'])
+            if dow is None:
+                continue
+            checked_by_dow[dow] = checked_by_dow.get(dow, 0) + 1
+
+        cur.execute(
+            f"SELECT DOW FROM CHOICHECKLIST_STAMP WHERE NTT_ID=%s AND STAMP_DATE IN ({placeholders})",
+            (ntt_id, *week_dates),
+        )
+        stamped_dows = {r['DOW'] for r in cur.fetchall()}
+
+    days = [{
+        'DOW': dow,
+        'CHECKED_COUNT': checked_by_dow.get(dow, 0),
+        'TOTAL_COUNT': total_by_dow.get(dow, 0),
+        'STAMPED': 'Y' if dow in stamped_dows else 'N',
+    } for dow in DOWS]
+    return jsonify({'weekStart': last_week_start.strftime('%Y-%m-%d'), 'days': days})
 
 
 # ── 관리자: 로그인 ──────────────────────────────────────────────────────────
@@ -213,15 +269,19 @@ def mychecklist_admin_item_delete(item_id):
         return jsonify(cur.fetchall())
 
 
-# ── 관리자: 구역별 현황판 · 스탬프 · 주 마감 ─────────────────────────────────
+# ── 관리자: 구역별 현황판 · 스탬프 · 기간별 달성 현황 ────────────────────────
 
 @mychecklist_bp.route('/mychecklist/admin/board', methods=['GET'])
 def mychecklist_admin_board():
     """구역별로 구분해 사용자별 요일별 체크 현황(개수/전체)과 스탬프 여부를 보여준다.
-    항목이 요일별로 다르므로 요일별 전체 개수(total)도 요일마다 다르게 계산한다."""
+    항목이 요일별로 다르므로 요일별 전체 개수(total)도 요일마다 다르게 계산한다.
+    조회 범위는 이번 주(월~일)의 실제 날짜들로 한정한다."""
     guard = _require_admin()
     if guard:
         return guard
+    week_dates = [_date_for_dow(dow) for dow in DOWS]
+    placeholders = ','.join(['%s'] * len(week_dates))
+
     with db_cursor() as cur:
         cur.execute("SELECT NTT_ID, GU, NAME FROM CHOIMEMBER WHERE ISMISSION='Y' ORDER BY GU, NTT_ID")
         members = cur.fetchall()
@@ -233,7 +293,10 @@ def mychecklist_admin_board():
             item_dow[r['ID']] = r['DOW']
             total_by_dow[r['DOW']] = total_by_dow.get(r['DOW'], 0) + 1
 
-        cur.execute("SELECT NTT_ID, ITEM_ID FROM CHOICHECKLIST WHERE CHECKED='Y'")
+        cur.execute(
+            f"SELECT NTT_ID, ITEM_ID FROM CHOICHECKLIST WHERE CHECKED='Y' AND CHK_DATE IN ({placeholders})",
+            week_dates,
+        )
         checked_map = {}        # ntt_id -> {dow: count}
         for r in cur.fetchall():
             dow = item_dow.get(r['ITEM_ID'])
@@ -242,7 +305,10 @@ def mychecklist_admin_board():
             checked_map.setdefault(r['NTT_ID'], {})
             checked_map[r['NTT_ID']][dow] = checked_map[r['NTT_ID']].get(dow, 0) + 1
 
-        cur.execute('SELECT NTT_ID, DOW FROM CHOICHECKLIST_STAMP')
+        cur.execute(
+            f"SELECT NTT_ID, DOW FROM CHOICHECKLIST_STAMP WHERE STAMP_DATE IN ({placeholders})",
+            week_dates,
+        )
         stamped_map = {}
         for r in cur.fetchall():
             stamped_map.setdefault(r['NTT_ID'], set()).add(r['DOW'])
@@ -265,8 +331,8 @@ def mychecklist_admin_board():
 
 @mychecklist_bp.route('/mychecklist/admin/history-range', methods=['GET'])
 def mychecklist_admin_history_range():
-    """기간(from~to) 달성 현황 — 마감(close-week)된 주차만 CHOICHECKLIST_HISTORY 에 쌓이므로
-    아직 마감 전인 이번 주/미래 기간은 집계에서 빠진다. 요일 실제 날짜 = WEEK_START(그 주 월요일) + (DOW-1)일."""
+    """기간(from~to) 달성 현황 — CHOICHECKLIST/CHOICHECKLIST_STAMP 가 이제 날짜 기반이라
+    마감 여부와 무관하게 그 기간에 실제로 존재한 날짜들을 직접 집계한다."""
     guard = _require_admin()
     if guard:
         return guard
@@ -276,22 +342,44 @@ def mychecklist_admin_history_range():
         return jsonify({'message': '조회 기간(from, to)을 지정해 주세요.'}), 400
     with db_cursor() as cur:
         cur.execute(
-            "SELECT h.NTT_ID, m.NAME, m.GU,"
-            "       SUM(h.CHECKED_COUNT) AS CHECKED_SUM, SUM(h.TOTAL_COUNT) AS TOTAL_SUM,"
-            "       SUM(h.STAMPED='Y') AS STAMP_COUNT, COUNT(*) AS DAY_COUNT"
-            " FROM CHOICHECKLIST_HISTORY h"
-            " JOIN CHOIMEMBER m ON m.NTT_ID = h.NTT_ID"
-            " WHERE DATE_ADD(h.WEEK_START, INTERVAL (h.DOW - 1) DAY) BETWEEN %s AND %s"
-            " GROUP BY h.NTT_ID, m.NAME, m.GU"
+            "WITH RECURSIVE dates AS ("
+            "  SELECT CAST(%s AS DATE) AS d"
+            "  UNION ALL"
+            "  SELECT d + INTERVAL 1 DAY FROM dates WHERE d < CAST(%s AS DATE)"
+            "),"
+            " day_totals AS ("
+            "  SELECT dates.d AS d, COUNT(i.ID) AS total"
+            "  FROM dates"
+            "  LEFT JOIN CHOICHECKLIST_ITEM i ON i.DOW = WEEKDAY(dates.d) + 1 AND i.LABEL <> ''"
+            "  GROUP BY dates.d"
+            "),"
+            " checked_by_day AS ("
+            "  SELECT c.NTT_ID, c.CHK_DATE AS d, COUNT(*) AS n"
+            "  FROM CHOICHECKLIST c JOIN CHOICHECKLIST_ITEM i ON i.ID = c.ITEM_ID"
+            "  WHERE c.CHECKED='Y' AND i.LABEL<>'' AND c.CHK_DATE BETWEEN %s AND %s"
+            "  GROUP BY c.NTT_ID, c.CHK_DATE"
+            ")"
+            " SELECT m.NTT_ID, m.NAME, m.GU,"
+            "        SUM(dt.total) AS TOTAL_SUM,"
+            "        SUM(COALESCE(cb.n, 0)) AS CHECKED_SUM,"
+            "        (SELECT COUNT(*) FROM CHOICHECKLIST_STAMP s"
+            "          WHERE s.NTT_ID = m.NTT_ID AND s.STAMP_DATE BETWEEN %s AND %s) AS STAMP_COUNT,"
+            "        COUNT(*) AS DAY_COUNT"
+            " FROM CHOIMEMBER m"
+            " CROSS JOIN day_totals dt"
+            " LEFT JOIN checked_by_day cb ON cb.NTT_ID = m.NTT_ID AND cb.d = dt.d"
+            " WHERE m.ISMISSION='Y'"
+            " GROUP BY m.NTT_ID, m.NAME, m.GU"
+            " HAVING TOTAL_SUM > 0"
             " ORDER BY m.GU, m.NAME",
-            (frm, to),
+            (frm, to, frm, to, frm, to),
         )
         return jsonify(cur.fetchall())
 
 
 @mychecklist_bp.route('/mychecklist/admin/stamp', methods=['POST'])
 def mychecklist_admin_stamp_grant():
-    """지정 요일 전 항목을 체크한 사용자에게만 스탬프를 부여한다."""
+    """지정 요일(이번 주 실제 날짜) 전 항목을 체크한 사용자에게만 스탬프를 부여한다."""
     guard = _require_admin()
     if guard:
         return guard
@@ -300,6 +388,7 @@ def mychecklist_admin_stamp_grant():
     dow = body.get('DOW')
     if not isinstance(ntt_id, int) or dow not in DOWS:
         return jsonify({'message': '잘못된 요청입니다.'}), 400
+    stamp_date = _date_for_dow(dow)
 
     with db_cursor(commit=True) as cur:
         # 빈 라벨 항목은 total에서 제외 — mychecklist_detail에서도 사용자에게 안 보여주므로 체크 대상이 아니다.
@@ -307,15 +396,16 @@ def mychecklist_admin_stamp_grant():
         total = cur.fetchone()['n']
         cur.execute(
             "SELECT COUNT(*) AS n FROM CHOICHECKLIST c JOIN CHOICHECKLIST_ITEM i ON i.ID=c.ITEM_ID"
-            " WHERE c.NTT_ID=%s AND i.DOW=%s AND i.LABEL<>'' AND c.CHECKED='Y'",
-            (ntt_id, dow),
+            " WHERE c.NTT_ID=%s AND c.CHK_DATE=%s AND i.LABEL<>'' AND c.CHECKED='Y'",
+            (ntt_id, stamp_date),
         )
         checked = cur.fetchone()['n']
         if total == 0 or checked < total:
             return jsonify({'message': '해당 요일 항목이 전부 체크되지 않았습니다.'}), 400
 
         cur.execute(
-            'INSERT IGNORE INTO CHOICHECKLIST_STAMP (NTT_ID, DOW) VALUES (%s,%s)', (ntt_id, dow)
+            'INSERT IGNORE INTO CHOICHECKLIST_STAMP (NTT_ID, DOW, STAMP_DATE) VALUES (%s,%s,%s)',
+            (ntt_id, dow, stamp_date),
         )
         return jsonify({'ok': True})
 
@@ -330,58 +420,7 @@ def mychecklist_admin_stamp_revoke():
     dow = body.get('DOW')
     if not isinstance(ntt_id, int) or dow not in DOWS:
         return jsonify({'message': '잘못된 요청입니다.'}), 400
+    stamp_date = _date_for_dow(dow)
     with db_cursor(commit=True) as cur:
-        cur.execute('DELETE FROM CHOICHECKLIST_STAMP WHERE NTT_ID=%s AND DOW=%s', (ntt_id, dow))
+        cur.execute('DELETE FROM CHOICHECKLIST_STAMP WHERE NTT_ID=%s AND STAMP_DATE=%s', (ntt_id, stamp_date))
         return jsonify({'ok': True})
-
-
-@mychecklist_bp.route('/mychecklist/admin/close-week', methods=['POST'])
-def mychecklist_admin_close_week():
-    """이번 주 요일별 체크/스탬프 현황을 인원×요일 단위 요약으로 이력에 남기고 초기화한다."""
-    guard = _require_admin()
-    if guard:
-        return guard
-    with db_cursor(commit=True) as cur:
-        cur.execute('SELECT CURDATE() AS today')
-        today = cur.fetchone()['today']
-        week_start = today - datetime.timedelta(days=today.weekday())
-
-        cur.execute("SELECT NTT_ID FROM CHOIMEMBER WHERE ISMISSION='Y'")
-        member_ids = [r['NTT_ID'] for r in cur.fetchall()]
-
-        cur.execute("SELECT ID, DOW FROM CHOICHECKLIST_ITEM WHERE LABEL<>''")
-        item_dow = {}
-        total_by_dow = {}
-        for r in cur.fetchall():
-            item_dow[r['ID']] = r['DOW']
-            total_by_dow[r['DOW']] = total_by_dow.get(r['DOW'], 0) + 1
-
-        cur.execute("SELECT NTT_ID, ITEM_ID FROM CHOICHECKLIST WHERE CHECKED='Y'")
-        checked_map = {}
-        for r in cur.fetchall():
-            dow = item_dow.get(r['ITEM_ID'])
-            if dow is None:
-                continue
-            checked_map.setdefault(r['NTT_ID'], {})
-            checked_map[r['NTT_ID']][dow] = checked_map[r['NTT_ID']].get(dow, 0) + 1
-
-        cur.execute('SELECT NTT_ID, DOW FROM CHOICHECKLIST_STAMP')
-        stamped_map = {}
-        for r in cur.fetchall():
-            stamped_map.setdefault(r['NTT_ID'], set()).add(r['DOW'])
-
-        for ntt_id in member_ids:
-            for dow in DOWS:
-                total = total_by_dow.get(dow, 0)
-                checked = checked_map.get(ntt_id, {}).get(dow, 0)
-                stamped = 'Y' if dow in stamped_map.get(ntt_id, set()) else 'N'
-                cur.execute(
-                    'INSERT INTO CHOICHECKLIST_HISTORY (NTT_ID, WEEK_START, DOW, CHECKED_COUNT, TOTAL_COUNT, STAMPED)'
-                    ' VALUES (%s,%s,%s,%s,%s,%s)'
-                    ' ON DUPLICATE KEY UPDATE CHECKED_COUNT=%s, TOTAL_COUNT=%s, STAMPED=%s',
-                    (ntt_id, week_start, dow, checked, total, stamped, checked, total, stamped),
-                )
-
-        cur.execute('DELETE FROM CHOICHECKLIST')
-        cur.execute('DELETE FROM CHOICHECKLIST_STAMP')
-        return jsonify({'ok': True, 'weekStart': week_start.strftime('%Y-%m-%d')})

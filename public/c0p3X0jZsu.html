@@ -168,10 +168,7 @@
   <div class="card" id="adminOverview"></div>
 
   <div class="card">
-    <div class="head-row">
-      <h2 style="margin:0">구역별 현황</h2>
-      <button type="button" class="btn danger sm" id="adminCloseWeekBtn">이번 주 마감</button>
-    </div>
+    <h2>구역별 현황</h2>
     <div id="adminBoard"></div>
   </div>
 
@@ -404,23 +401,19 @@ historyFab.addEventListener('click', async () => {
   try{
     const data = await apiGet(`/mychecklist/${userState.nttId}/history`);
     const body = backdrop.querySelector('.modal');
-    if(!data.weekStart){
-      body.innerHTML = `<div class="modal-head"><strong>이전주차 요약</strong><button type="button" aria-label="닫기">×</button></div><div class="note">아직 마감된 이전 주차 기록이 없습니다.</div>`;
-    }else{
-      body.innerHTML = `
-        <div class="modal-head"><strong>이전주차 요약 (${data.weekStart} 주)</strong><button type="button" aria-label="닫기">×</button></div>
-        <table>
-          <thead><tr><th>요일</th><th>체크</th><th>스탬프</th></tr></thead>
-          <tbody>
-            ${data.days.map(d => `
-              <tr>
-                <td>${DOW_LABEL[d.DOW]}</td>
-                <td>${d.CHECKED_COUNT} / ${d.TOTAL_COUNT}</td>
-                <td>${d.STAMPED === 'Y' ? '<span class="stamp-icon">★</span>' : ''}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>`;
-    }
+    body.innerHTML = `
+      <div class="modal-head"><strong>이전주차 요약 (${data.weekStart} 주)</strong><button type="button" aria-label="닫기">×</button></div>
+      <table>
+        <thead><tr><th>요일</th><th>체크</th><th>스탬프</th></tr></thead>
+        <tbody>
+          ${data.days.map(d => `
+            <tr>
+              <td>${DOW_LABEL[d.DOW]}</td>
+              <td>${d.CHECKED_COUNT} / ${d.TOTAL_COUNT}</td>
+              <td>${d.STAMPED === 'Y' ? '<span class="stamp-icon">★</span>' : ''}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
     body.querySelector('.modal-head button').addEventListener('click', close);
   }catch(e){
     backdrop.querySelector('.modal').innerHTML = `<div class="note">${e.message}</div>`;
@@ -683,13 +676,6 @@ document.getElementById('adminLogoutBtn').addEventListener('click', () => {
   showOnly('landing');
 });
 
-document.getElementById('adminCloseWeekBtn').addEventListener('click', async () => {
-  if(!confirm('이번 주를 마감하시겠습니까? 요일별 체크/스탬프 현황이 이력으로 저장되고, 이번 주 체크는 모두 초기화됩니다.')) return;
-  try{
-    await adminCall('/mychecklist/admin/close-week', { method:'POST' });
-    loadAdminBoard();
-  }catch(e){ alert(`마감 실패: ${e.message}`); }
-});
 </script>
 
 </body>

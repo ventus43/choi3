@@ -79,32 +79,26 @@ CREATE TABLE IF NOT EXISTS CHOICHECKLIST_ITEM (
     PRIMARY KEY (ID)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 이번 주(마감 전) 체크 상태 — 사용자 본인이 직접 토글. 항목이 이미 요일을 갖고 있어 DOW 컬럼 불필요.
+-- 날짜별 체크 상태 — 사용자 본인이 직접 토글. CHK_DATE = 그 항목 요일(DOW)이 속한 주의 실제
+-- 캘린더 날짜(체크리스트 기준 "오늘"은 KST 오전 10시 컷오프, mychecklist.py _checklist_today 참고).
+-- 요일별로 실제 날짜가 다르므로 마감(초기화) 없이도 주가 바뀌면 자동으로 새 행이 쌓인다.
 CREATE TABLE IF NOT EXISTS CHOICHECKLIST (
-    NTT_ID  INT      NOT NULL,
-    ITEM_ID INT      NOT NULL,
-    CHECKED CHAR(1)  NOT NULL DEFAULT 'N',
-    MOD_DT  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (NTT_ID, ITEM_ID)
+    NTT_ID   INT      NOT NULL,
+    ITEM_ID  INT      NOT NULL,
+    CHK_DATE DATE     NOT NULL,
+    CHECKED  CHAR(1)  NOT NULL DEFAULT 'N',
+    MOD_DT   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (NTT_ID, ITEM_ID, CHK_DATE)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 이번 주 요일별 스탬프 — 해당 요일 전 항목이 체크된 사용자에게 관리자가 부여.
+-- 날짜별 스탬프 — 해당 날짜(그 주 해당 요일) 전 항목이 체크된 사용자에게 관리자가 부여.
+-- STAMP_DATE 가 곧 이력이라 CHOICHECKLIST_HISTORY/주 마감 없이도 기간별 조회가 가능하다.
 CREATE TABLE IF NOT EXISTS CHOICHECKLIST_STAMP (
-    NTT_ID INT      NOT NULL,
-    DOW    TINYINT  NOT NULL,
-    REG_DT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (NTT_ID, DOW)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 주 마감 시 남기는 요일별 요약 이력 — 사용자 '이전주차요약' 조회용.
-CREATE TABLE IF NOT EXISTS CHOICHECKLIST_HISTORY (
-    NTT_ID        INT      NOT NULL,
-    WEEK_START    DATE     NOT NULL,
-    DOW           TINYINT  NOT NULL,
-    CHECKED_COUNT INT      NOT NULL,
-    TOTAL_COUNT   INT      NOT NULL,
-    STAMPED       CHAR(1)  NOT NULL DEFAULT 'N',
-    PRIMARY KEY (NTT_ID, WEEK_START, DOW)
+    NTT_ID     INT      NOT NULL,
+    DOW        TINYINT  NOT NULL,   -- 표시 편의용(요일 라벨) — 실제 식별은 STAMP_DATE
+    STAMP_DATE DATE     NOT NULL,
+    REG_DT     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (NTT_ID, STAMP_DATE)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 체크리스트 공개 페이지 관리자 비밀번호(단일 행) — 관리자가 화면에서 바꿀 수 있다.
