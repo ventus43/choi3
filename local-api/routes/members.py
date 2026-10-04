@@ -10,7 +10,7 @@ members_bp = Blueprint('members', __name__)
 @members_bp.route('/member', methods=['GET'])
 def member_list():
     with db_cursor() as cur:
-        cur.execute('SELECT NTT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER ORDER BY GU, NTT_ID')
+        cur.execute('SELECT NTT_ID, DEPT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER ORDER BY GU, NTT_ID')
         return jsonify(cur.fetchall())
 
 
@@ -22,18 +22,18 @@ def member_create():
         cur.execute('SELECT COALESCE(MAX(NTT_ID), 0) + 1 AS n FROM CHOIMEMBER')
         new_id = cur.fetchone()['n']
         cur.execute(
-            'INSERT INTO CHOIMEMBER (NTT_ID, GU, NAME, TA, ISMISSION) VALUES (%s,%s,%s,%s,%s)',
+            'INSERT INTO CHOIMEMBER (NTT_ID, DEPT_ID, GU, NAME, TA, ISMISSION) VALUES (%s,%s,%s,%s,%s,%s)',
             # TA: 0=일반 / 1=상담사 / 2=교사 (기본 0)
-            (new_id, body.get('GU'), body.get('NAME'), body.get('TA', 0), body.get('ISMISSION', 'N')),
+            (new_id, body.get('DEPT_ID', 1), body.get('GU'), body.get('NAME'), body.get('TA', 0), body.get('ISMISSION', 'N')),
         )
-        cur.execute('SELECT NTT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER WHERE NTT_ID=%s', (new_id,))
+        cur.execute('SELECT NTT_ID, DEPT_ID, GU, NAME, TA, ISMISSION FROM CHOIMEMBER WHERE NTT_ID=%s', (new_id,))
         return jsonify(cur.fetchone()), 201
 
 
 @members_bp.route('/member/<int:ntt_id>', methods=['PUT'])
 def member_update(ntt_id):
     body = request.get_json(silent=True) or {}
-    col_map = {'GU': 'GU', 'NAME': 'NAME', 'TA': 'TA', 'ISMISSION': 'ISMISSION'}
+    col_map = {'DEPT_ID': 'DEPT_ID', 'GU': 'GU', 'NAME': 'NAME', 'TA': 'TA', 'ISMISSION': 'ISMISSION'}
     sets, vals = build_update(col_map, body, blank_to_null=False)
     if not sets:
         return jsonify({'message': '변경 항목 없음'}), 400

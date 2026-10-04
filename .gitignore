@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Python venv (local-api/)
+.venv
+__pycache__/
+*.pyc
+
 # secrets / deploy
 *.pem
 choi3.env

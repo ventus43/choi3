@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>최강3부 분석시스템</title>
+<title>분석 시스템</title>
 <style>
   :root{
     --bg:#f4f5f7; --card:#ffffff; --ink:#1c1e21; --sub:#6b7280;
@@ -42,6 +42,8 @@
 
   #parseError{color:var(--warn); font-size:12.5px; margin-top:8px; display:none;}
   #mismatchWarn{color:var(--warn); font-size:12.5px; margin-top:8px; display:none; white-space:pre-line;}
+  #rosterAddError,#deptAddError{color:var(--warn); font-size:12.5px; margin-top:8px; display:none;}
+  .roster-zone-count{color:var(--sub); font-weight:500; font-size:12px;}
 
   #mergeWarn{
     display:none; background:#fff4e6; border:1px solid #f5c088; border-radius:10px;
@@ -277,13 +279,85 @@
   .auth-box{text-align:left;max-width:380px;}.auth-box .btn{display:flex;align-items:center;}.password-field{position:relative;}.password-field #auth-pw{padding-right:72px;}.password-toggle{position:absolute;right:6px;top:6px;border:0;background:transparent;color:var(--accent);padding:6px;font-size:12px;cursor:pointer;}
   @media (max-width:760px){body{font-size:14px}.app-shell{padding:16px}.app-header{grid-template-columns:1fr;gap:14px;padding-top:8px}.header-state{min-width:0}.workspace{padding-top:16px}.page-tabs{overflow-x:auto;white-space:nowrap}.page-tabs .tab{flex:0 0 auto}.main-column{gap:24px}.section-heading{align-items:start}.input-card,.panel{padding:16px}.input-row{grid-template-columns:1fr;display:grid}.date-field,.trend-controls .date-field{min-width:0}.trend-controls{display:grid;grid-template-columns:1fr}.trend-card-layout{display:grid;justify-content:stretch;margin-top:0;}.trend-card-layout select{width:100%;min-width:0;}.btn-row{display:grid;grid-template-columns:1fr}.btn{width:100%}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.summary .box .n{font-size:21px}.row{gap:8px}.row .label{min-width:42px}#dashZoneList{grid-template-columns:1fr}.dash-zone .zh{align-items:start;gap:4px;flex-direction:column}.dash-zone-actions{width:100%;justify-content:space-between;}.dash-copy-btn{width:auto;}#trendCardsWrap[data-layout="wide"]{grid-template-columns:1fr;}#trendCardsWrap[data-layout="compact"]{grid-template-columns:repeat(2,minmax(0,1fr));}.status-badge{margin-left:0}.zone-toggle{padding:13px}.face-row{padding:12px}.app-header h1{font-size:27px}}
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+  /* 인원 관리: 구역별 명부와 독립된 입력 공간 */
+  :is(#rosterManage,#adminRoot) { --roster-danger:var(--danger); }
+  :is(#rosterManage,#adminRoot) .section-heading {align-items:center;flex-wrap:wrap;gap:16px;}
+  .roster-toolbar {display:flex;align-items:end;gap:16px;flex-wrap:wrap;padding:20px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:20px;}
+  .roster-toolbar label,.roster-fields label {display:block;font-size:13px;font-weight:700;margin-bottom:8px;}
+  .roster-search {flex:1;min-width:180px;}
+  .roster-search>div {display:flex;gap:8px;}
+  :is(#rosterManage,#adminRoot) input:not([type=checkbox]),:is(#rosterManage,#adminRoot) select {width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--card);color:var(--ink);font:inherit;font-size:16px;}
+  :is(#rosterManage,#adminRoot) input[aria-invalid=true] {border-color:var(--roster-danger);}
+  :is(#rosterManage,#adminRoot) .btn {min-height:44px;white-space:nowrap;}
+  :is(#rosterManage,#adminRoot) .btn:hover:not(:disabled) {filter:brightness(.94);}
+  :is(#rosterManage,#adminRoot) .btn:active:not(:disabled) {transform:translateY(1px);}
+  :is(#rosterManage,#adminRoot) :focus-visible {outline:3px solid var(--accent);outline-offset:3px;}
+  :is(#rosterManage,#adminRoot) :disabled {opacity:.55;cursor:wait;}
+  #rosterCount {color:var(--sub);font-size:13px;}
+  .roster-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+  .roster-zone {border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden;}
+  .roster-zone h3 {display:flex;justify-content:space-between;margin:0;padding:16px 20px;font-size:15px;background:var(--accent-soft);color:var(--accent);}
+  .roster-person {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-top:1px solid var(--line);}
+  .roster-person>span:first-child {overflow-wrap:anywhere;font-weight:600;}
+  .roster-actions {display:flex;gap:8px;flex-shrink:0;}
+  :is(#rosterManage,#adminRoot) .roster-delete {color:var(--roster-danger);border-color:transparent;}
+  .roster-empty {padding:40px 20px;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px;line-height:1.8;}
+  .roster-dialog {width:min(520px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid var(--line);border-radius:16px;padding:28px;color:var(--ink);background:var(--card);}
+  .roster-dialog::backdrop {background:rgb(28 30 33 / .45);}
+  .roster-dialog h2 {font-size:22px;margin:4px 0 12px;}
+  .roster-help,.roster-fields label span {color:var(--sub);font-size:13px;line-height:1.7;font-weight:400;}
+  .roster-fields {display:grid;grid-template-columns:2fr 1fr;gap:16px;margin:24px 0 16px;}
+  .roster-mission {display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:10px;padding:16px;cursor:pointer;}
+  .roster-mission input {width:20px;height:20px;accent-color:var(--accent);}
+  .roster-mission small {display:block;color:var(--sub);font-size:12px;margin-top:4px;}
+  .roster-dialog footer {display:flex;justify-content:flex-end;gap:10px;margin-top:24px;}
+  #rosterAddBtn {min-width:112px;}
+  :is(#rosterManage,#adminRoot) #rosterAddError {display:block;min-height:22px;color:var(--roster-danger);}
+  #rosterDeleteError {color:var(--roster-danger);}
+  :is(#rosterManage,#adminRoot) .roster-danger {background:var(--roster-danger);}
+  #rosterDiscard {border-top:1px solid var(--line);padding-top:12px;font-size:14px;}
+  @media(max-width:700px){.roster-grid{grid-template-columns:1fr;}.roster-toolbar{padding:16px;gap:12px;}.roster-person{padding:12px;}.roster-dialog{padding:20px;}.roster-fields{grid-template-columns:1fr;gap:14px;}.roster-dialog footer .btn{flex:1;}#rosterCount{width:100%;margin:0;}}
+
+
+  .roster-import {border:1px solid var(--line);border-radius:12px;background:var(--card);padding:18px 20px;margin-bottom:20px;}
+  .roster-import summary {cursor:pointer;font-weight:700;color:var(--accent);min-height:32px;}
+  .roster-import p {font-size:14px;line-height:1.8;}
+  .roster-import-guide {display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+  .roster-import table {border-collapse:collapse;min-width:220px;font-size:14px;}
+  .roster-import td,.roster-import th {padding:8px 16px;text-align:left;border-bottom:1px solid var(--line);}
+  .roster-import th {background:var(--accent-soft);}
+  .roster-import caption {text-align:left;font-weight:700;margin-bottom:8px;}
+  .roster-file {position:absolute;width:1px!important;height:1px;opacity:0;}
+  .roster-import .btn-row:focus-within {outline:2px solid var(--accent);outline-offset:4px;}
+  #rosterImportPreview {max-height:320px;overflow:auto;margin:16px 0;}
+  #rosterImportPreview table {width:100%;}
+  #rosterImportError {color:var(--danger);white-space:pre-line;font-size:14px;}
+
+  #adminRoot .work-section {margin-top:24px;}
+  #adminRoot .section-heading {align-items:center;flex-wrap:wrap;gap:16px;}
+  .dept-card h3 {overflow-wrap:anywhere;}
+  .dept-card>p {padding:0 20px;color:var(--sub);font-size:13px;}
+  .dept-card .roster-actions {padding:0 20px 20px;justify-content:flex-end;}
+  #adminRoot .dept-delete {color:var(--danger);border-color:transparent;}
+  #adminRoot .dept-danger {background:var(--danger);}
+  .dept-fields {display:grid;gap:20px;margin-top:24px;}
+  .dept-fields label {display:block;font-size:14px;font-weight:700;margin-bottom:8px;}
+  .dept-fields label span,#deptCount {font-size:13px;font-weight:400;color:var(--sub);}
+  .dept-password {display:flex;gap:8px;}
+  .dept-password input {min-width:0;}
+  #adminRoot #deptAddError {display:block;min-height:24px;color:var(--danger);font-size:14px;}
+  #deptDeleteError {color:var(--danger);}
+  #deptAddBtn {min-width:112px;}
+  #deptDiscard {padding-top:12px;border-top:1px solid var(--line);font-size:14px;}
+  @media(max-width:700px){#deptCount{width:100%;margin:0;}}
 </style>
 </head>
 <body>
 
 <div id="appRoot" class="app-shell">
   <header class="app-header">
-    <div><div class="eyebrow">REPORT DESK</div><h1>최강3부 분석시스템</h1><p class="sub">보고를 붙여넣고, 이상을 확인한 뒤, 바로 출석 현황과 추이를 검토하세요.</p></div>
+    <div><div class="eyebrow">REPORT DESK</div><h1 id="reportTitle">분석 시스템</h1><p class="sub">보고를 붙여넣고, 이상을 확인한 뒤, 바로 출석 현황과 추이를 검토하세요.</p></div>
     <div class="header-state" aria-live="polite"><strong>이번 주 작업</strong><span id="headerStatus">새 보고를 분석할 준비가 되었습니다.</span></div>
   </header>
   <div class="workspace">
@@ -292,6 +366,7 @@
         <button type="button" class="tab active" data-tab="input" role="tab" aria-selected="true">보고 입력</button>
         <button type="button" class="tab" data-tab="report" role="tab" aria-selected="false">기록 · 수정</button>
         <button type="button" class="tab" data-tab="insight" role="tab" aria-selected="false">출석 · 추이</button>
+        <button type="button" class="tab" data-tab="roster" role="tab" aria-selected="false">인원 관리</button>
       </div>
 
       <div data-tab-panel="input">
@@ -317,6 +392,40 @@
         <section class="work-section" id="absence" aria-labelledby="absence-title"><div class="section-heading"><div><div class="step-kicker">03A · 관리</div><h2 id="absence-title">결석 인원 관리</h2><p>선택 날짜에 결석인 인원만 표시하며, 저장된 기록 기준 연속 결석 주차를 확인합니다.</p></div></div><div class="absence-panel"><div id="absenceList" aria-live="polite"><div class="loading">대시보드 날짜를 선택해 주세요.</div></div></div></section>
         <section class="work-section" id="trend" aria-labelledby="trend-title"><div class="section-heading"><div><div class="step-kicker">04 · 비교</div><h2 id="trend-title">구역별 출석 추이</h2><p>선택한 기간의 QR 인증 인원과 구역 전체 인원을 비교합니다.</p></div></div><div class="trend-controls"><div class="date-field"><label class="field-label" for="trendStartDate">시작일</label><input type="date" id="trendStartDate"></div><div class="date-field"><label class="field-label" for="trendEndDate">종료일</label><input type="date" id="trendEndDate"></div><label class="trend-sunday-filter" for="trendSundayOnly"><input type="checkbox" id="trendSundayOnly"><span>주일 기록만 보기<small>일요일 외 기록 제외</small></span></label><button type="button" class="btn" id="trendRefreshBtn">기간 조회</button><button type="button" class="btn ghost" id="trendClearBtn">전체 기간</button><span class="trend-range-status" id="trendRangeStatus">기간을 지정하지 않으면 전체 기록을 표시합니다.</span><span class="trend-filter-error" id="trendFilterError" role="alert"></span></div><div id="trendChartWrap" aria-label="구역별 출석률 점 그래프"></div><div class="trend-card-layout" id="trendCardLayoutControl" hidden><label class="field-label" for="trendCardLayout">구역별 카드 레이아웃</label><select id="trendCardLayout"><option value="wide">넓게 보기</option><option value="default" selected>기본 보기</option><option value="compact">촘촘히 보기</option></select></div><div id="trendCardsWrap" aria-label="구역별 추이 카드"></div><div id="trendTableWrap" tabindex="0" aria-label="구역별 출석 추이 표"></div></section>
       </div>
+      <div data-tab-panel="roster" hidden>
+        <section class="work-section" id="rosterManage" aria-labelledby="rosterManage-title">
+          <div class="section-heading"><div><div class="step-kicker">우리 부서 명단</div><h2 id="rosterManage-title">인원 관리</h2><p>이름으로 찾고, 구역과 사명 여부를 관리하세요. 변경 내용은 구역 관리에도 반영됩니다.</p></div><button type="button" class="btn" id="rosterNewBtn">+ 인원 등록</button></div>
+          <details class="roster-import"><summary>엑셀로 명단 일괄 등록</summary>
+            <p>양식을 내려받아 <strong>명단</strong> 시트에 한 줄당 한 명씩 입력하세요. 첫 행의 <strong>구역 / 이름</strong> 헤더는 유지해 주세요.</p>
+            <div class="roster-import-guide"><table><caption>입력 예시</caption><thead><tr><th>구역</th><th>이름</th></tr></thead><tbody><tr><td>1</td><td>홍길동</td></tr><tr><td>1</td><td>김민수</td></tr><tr><td>2</td><td>이서연</td></tr></tbody></table><p>구역: 숫자만 입력 · 이름: 최대 20자<br>.xlsx 파일, 최대 5MB / 1,000명<br>사명 여부는 일반으로 등록됩니다.<br>같은 구역·이름은 제외합니다. 동명이인은 개별 등록하세요.<br>양식의 ‘작성 예시’ 시트는 등록되지 않습니다.</p></div>
+            <div class="btn-row"><button type="button" class="btn ghost" id="rosterTemplate">엑셀 양식 다운로드</button><label class="btn" for="rosterImportFile">엑셀 파일 선택</label><input type="file" id="rosterImportFile" accept=".xlsx" aria-label="등록할 엑셀 파일" class="roster-file"></div>
+            <p id="rosterImportStatus" role="status"></p><div id="rosterImportError" role="alert"></div>
+            <div id="rosterImportPreview" hidden></div><button type="button" class="btn" id="rosterImportConfirm" hidden>명단 등록</button>
+          </details>
+          <div class="roster-toolbar">
+            <div class="roster-search"><label for="rosterSearch">이름 검색</label><div><input id="rosterSearch" type="search" placeholder="찾을 이름 입력" autocomplete="off"><button class="btn ghost" id="rosterSearchClear" type="button" hidden>지우기</button></div></div>
+            <p id="rosterCount" role="status"></p>
+          </div>
+          <div id="rosterManageList" aria-busy="false"></div>
+          <dialog id="rosterDialog" class="roster-dialog" aria-labelledby="rosterDialogTitle">
+            <form id="rosterForm" novalidate>
+              <header><p class="step-kicker">우리 부서 명단</p><h2 id="rosterDialogTitle">인원 등록</h2><p class="roster-help">이름은 필수입니다. 구역을 모르면 비워 두세요.</p></header>
+              <div class="roster-fields">
+                <div><label for="rosterAddName">이름 <span>(필수)</span></label><input type="text" id="rosterAddName" placeholder="이름 입력" maxlength="20" aria-describedby="rosterAddError" autocomplete="off"></div>
+                <div><label for="rosterAddGu">구역 <span>(선택)</span></label><input type="number" id="rosterAddGu" placeholder="예: 1" min="1" step="1" aria-describedby="rosterAddError"></div>
+              </div>
+              <label class="roster-mission" for="rosterAddMission"><input type="checkbox" id="rosterAddMission"><span>사명자<small>사명자로 등록할 인원이면 선택하세요.</small></span></label>
+              <p id="rosterAddError" role="alert"></p>
+              <div id="rosterDiscard" hidden><p>작성 중인 내용을 저장하지 않고 닫을까요?</p><button type="button" class="btn ghost" id="rosterDiscardBtn">저장하지 않고 닫기</button></div>
+              <footer><button type="button" class="btn ghost" id="rosterCancel">취소</button><button type="submit" class="btn" id="rosterAddBtn">인원 등록</button></footer>
+            </form>
+          </dialog>
+          <dialog id="rosterDeleteDialog" class="roster-dialog" aria-labelledby="rosterDeleteTitle">
+            <h2 id="rosterDeleteTitle">명단에서 삭제</h2><p id="rosterDeleteDescription"></p><p class="roster-help">구역 관리에서도 함께 삭제되며 되돌릴 수 없습니다.</p><p id="rosterDeleteError" role="alert"></p>
+            <footer><button type="button" class="btn ghost" id="rosterDeleteCancel" autofocus>취소</button><button type="button" class="btn roster-danger" id="rosterDeleteConfirm">삭제</button></footer>
+          </dialog>
+        </section>
+      </div>
       <footer class="note footer-note">데이터는 choi3 DB에 저장되어 같은 백오피스 사용자가 함께 확인합니다. 같은 날짜에 다시 분석하면 기존 기록과 병합됩니다.</footer>
     </main>
   </div>
@@ -326,10 +435,17 @@
 /* ── 로그인 게이트 ──
    choi3 SPA(src/core/auth.js)와 완전히 분리된 별도 인증 영역이다.
    토큰 저장 키·로그인 엔드포인트·요청 헤더가 전부 달라서, SPA 로그인 여부와 무관하게
-   이 페이지만의 비밀번호(REPORT_PASSWORD)로 별도 로그인해야 한다. */
+   이 페이지만의 비밀번호로 별도 로그인해야 한다.
+
+   이 페이지엔 로그인이 두 종류 있다:
+     - 부서 로그인(CHOIDEPT.PASSWORD) — 그 부서의 보고/명단만 보고 관리.
+     - 관리자 로그인(CHOIDEPT_ADMIN.PASSWORD) — 부서 자체를 추가/수정("관리자" 화면),
+       특정 부서 데이터는 못 봄. 완전히 별도 세션(저장 키·토큰 전부 분리)으로 취급한다. */
 const API_BASE = '/api';
 const TOKEN_KEY = 'choi3_report_token';
 const EXP_KEY   = 'choi3_report_exp';
+const ADMIN_TOKEN_KEY = 'choi3_report_admin_token';
+const ADMIN_EXP_KEY   = 'choi3_report_admin_exp';
 const FALLBACK_TTL = 600;
 
 function getAuthToken(){ return localStorage.getItem(TOKEN_KEY) || ''; }
@@ -348,8 +464,24 @@ function isAuthed(){
   return true;
 }
 
-async function login(password){
-  const res = await fetch(`${API_BASE}/reports/auth/login`, {
+function getAdminToken(){ return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; }
+function clearAdminAuth(){ localStorage.removeItem(ADMIN_TOKEN_KEY); localStorage.removeItem(ADMIN_EXP_KEY); }
+
+function storeAdminSession(token, ttlSec){
+  const ttl = Number(ttlSec) > 0 ? Number(ttlSec) : FALLBACK_TTL;
+  localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  localStorage.setItem(ADMIN_EXP_KEY, String(Date.now() + ttl * 1000));
+}
+
+function isAdminAuthed(){
+  if(!getAdminToken()) return false;
+  const exp = Number(localStorage.getItem(ADMIN_EXP_KEY) || 0);
+  if(!exp || Date.now() >= exp){ clearAdminAuth(); return false; }
+  return true;
+}
+
+async function loginRequest(path, password){
+  const res = await fetch(`${API_BASE}${path}`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ password }),
@@ -359,21 +491,32 @@ async function login(password){
     try{ const b = await res.json(); if(b?.message) message = b.message; }catch(_){}
     throw new Error(message);
   }
-  const { token, ttl } = await res.json();
+  return res.json();
+}
+
+async function login(password){
+  const { token, ttl } = await loginRequest('/reports/auth/login', password);
   storeSession(token, ttl);
 }
 
-function renderAuthGate(onSuccess){
+async function adminLogin(password){
+  const { token, ttl } = await loginRequest('/reports/admin/login', password);
+  storeAdminSession(token, ttl);
+}
+
+function renderAuthGate(onDeptSuccess, onAdminSuccess){
+  let mode = 'dept';
   const overlay = document.createElement('div');
   overlay.id = 'auth-gate';
   overlay.innerHTML = `
     <div class="auth-box">
       <div class="auth-title">관리시스템</div>
-      <p class="auth-sub">비밀번호를 입력해 주세요.</p>
+      <p class="auth-sub" id="auth-sub">비밀번호를 입력해 주세요.</p>
       <label class="field-label" for="auth-pw">비밀번호</label>
       <div class="password-field"><input type="password" id="auth-pw" placeholder="비밀번호" autocomplete="current-password" aria-describedby="auth-error"><button type="button" class="password-toggle" id="auth-toggle" aria-label="비밀번호 표시">표시</button></div>
       <div class="auth-error" id="auth-error" role="alert">비밀번호가 올바르지 않습니다.</div>
       <button type="button" id="auth-submit" class="btn">확인</button>
+      <button type="button" id="auth-mode-toggle" class="btn ghost btn-sm" style="margin-top:8px;">부서 관리자이신가요? 관리자 로그인</button>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -381,6 +524,8 @@ function renderAuthGate(onSuccess){
   const error  = overlay.querySelector('#auth-error');
   const submit = overlay.querySelector('#auth-submit');
   const toggle = overlay.querySelector('#auth-toggle');
+  const sub    = overlay.querySelector('#auth-sub');
+  const modeToggle = overlay.querySelector('#auth-mode-toggle');
 
   const showError = (msg) => {
     error.textContent = msg;
@@ -395,9 +540,15 @@ function renderAuthGate(onSuccess){
     submit.disabled = true;
     submit.textContent = '확인 중…';
     try{
-      await login(pw);
-      overlay.remove();
-      onSuccess();
+      if(mode === 'admin'){
+        await adminLogin(pw);
+        overlay.remove();
+        onAdminSuccess();
+      }else{
+        await login(pw);
+        overlay.remove();
+        onDeptSuccess();
+      }
     }catch(err){
       showError(err.message || '로그인에 실패했습니다.');
       submit.disabled = false;
@@ -405,15 +556,25 @@ function renderAuthGate(onSuccess){
     }
   };
 
+  modeToggle.addEventListener('click', ()=>{
+    mode = mode === 'dept' ? 'admin' : 'dept';
+    sub.textContent = mode === 'admin' ? '부서 관리자 비밀번호를 입력해 주세요.' : '비밀번호를 입력해 주세요.';
+    modeToggle.textContent = mode === 'admin' ? '← 부서 로그인으로 돌아가기' : '부서 관리자이신가요? 관리자 로그인';
+    error.classList.remove('show');
+    input.value = '';
+    input.focus();
+  });
+
   submit.addEventListener('click', tryLogin);
   toggle.addEventListener('click', ()=>{ const visible = input.type === 'text'; input.type = visible ? 'password' : 'text'; toggle.textContent = visible ? '표시' : '숨기기'; toggle.setAttribute('aria-label', visible ? '비밀번호 표시' : '비밀번호 숨기기'); input.focus(); });
   input.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.isComposing) tryLogin(); });
   input.focus();
 }
 
-function ensureAuth(onReady){
-  if(isAuthed()){ onReady(); return; }
-  renderAuthGate(onReady);
+function boot(){
+  if(isAdminAuthed()){ renderAdminApp(); return; }
+  if(isAuthed()){ initApp(); return; }
+  renderAuthGate(initApp, renderAdminApp);
 }
 
 /* ── 저장소: choi3 DB(CHOIREPORT)에 저장 — 같은 백오피스를 쓰는 누구든 같은 기록을 본다 ── */
@@ -424,6 +585,27 @@ async function apiRequest(path, options = {}){
   });
   if(res.status === 401){
     clearAuth();
+    location.reload();
+    throw new Error('인증이 필요합니다. 다시 로그인해 주세요.');
+  }
+  if(!res.ok){
+    let message = `요청 실패 (${res.status})`;
+    try{ const b = await res.json(); if(b?.message) message = b.message; }catch(_){}
+    throw new Error(message);
+  }
+  if(res.status === 204) return null;
+  return res.json();
+}
+
+/* 관리자 세션 전용 요청 — apiRequest 와 거의 같지만 토큰 저장 위치가 달라서(ADMIN_TOKEN_KEY)
+   401 시 지우는 세션도 관리자 세션이어야 한다. */
+async function adminApiRequest(path, options = {}){
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', 'X-Report-Auth': getAdminToken() },
+    ...options,
+  });
+  if(res.status === 401){
+    clearAdminAuth();
     location.reload();
     throw new Error('인증이 필요합니다. 다시 로그인해 주세요.');
   }
@@ -719,6 +901,182 @@ async function refreshRosterCache(){
   catch(e){ rosterCache = []; }
 }
 
+/* ── "인원 관리" 탭 — choi3 메인 SPA(구역 관리)와 같은 CHOIMEMBER 를 공유, 로그인한
+   부서 소속으로 바로 등록/수정/삭제할 수 있게 한다. 조회만 하는 다른 화면들과 달리
+   여기서는 POST/PUT/DELETE /reports/member 로 실제 인원을 변경한다. ── */
+let rosterEditingId = null;
+let rosterManageCache = [];
+let rosterBusy = false;
+let rosterSnapshot = '';
+let rosterLoadVersion = 0;
+const rosterEl = id => document.getElementById(id);
+const rosterValues = () => ({NAME:rosterEl('rosterAddName').value.trim(), GU:rosterEl('rosterAddGu').value ? Number(rosterEl('rosterAddGu').value) : null, ISMISSION:rosterEl('rosterAddMission').checked ? 'Y' : 'N'});
+const rosterZoneName = gu => gu == null || gu === '' ? '구역 미지정' : `${gu}구역`;
+
+function renderRosterManage(){
+  const query = rosterEl('rosterSearch').value.trim();
+  rosterEl('rosterSearchClear').hidden = !query;
+  const filtered = rosterManageCache.filter(p => p.NAME.includes(query))
+    .sort((a,b) => Number(a.GU ?? Infinity)-Number(b.GU ?? Infinity) || a.NAME.localeCompare(b.NAME,'ko'));
+  const shown = filtered;
+  rosterEl('rosterCount').textContent = `전체 ${rosterManageCache.length}명 · 검색 결과 ${filtered.length}명`;
+  const zones = [...new Set(shown.map(p => p.GU))];
+  const list = rosterEl('rosterManageList');
+  list.innerHTML = shown.length ? `<div class="roster-grid">${zones.map(gu => `<section class="roster-zone"><h3>${escapeHtml(rosterZoneName(gu))}<span>${filtered.filter(p=>p.GU===gu).length}명</span></h3>${shown.filter(p=>p.GU===gu).map(p=>`
+    <div class="roster-person"><span>${escapeHtml(p.NAME)}${p.ISMISSION==='Y' ? ' <span class="status-badge status-zoom">사명자</span>' : ''}</span><span class="roster-actions"><button type="button" class="btn ghost" data-roster-edit="${p.NTT_ID}" aria-label="${escapeHtml(p.NAME)} 수정">수정</button><button type="button" class="btn ghost roster-delete" data-roster-del="${p.NTT_ID}" aria-label="${escapeHtml(p.NAME)} 삭제">삭제</button></span></div>`).join('')}</section>`).join('')}</div>`
+    : `<div class="roster-empty">${rosterManageCache.length ? '검색 결과가 없습니다. 이름을 다시 확인해 주세요.' : '등록된 인원이 없습니다. 위의 인원 등록 버튼으로 명단을 만들어 주세요.'}</div>`;
+  list.querySelectorAll('[data-roster-edit]').forEach(btn=>btn.onclick=()=>openRosterForm(Number(btn.dataset.rosterEdit)));
+  list.querySelectorAll('[data-roster-del]').forEach(btn=>btn.onclick=()=>handleRosterDelete(Number(btn.dataset.rosterDel)));
+}
+async function loadRosterManage(){
+  const version = ++rosterLoadVersion;
+  const list = rosterEl('rosterManageList');
+  list.setAttribute('aria-busy','true');
+  list.innerHTML = '<div class="roster-empty" role="status">명단을 불러오는 중…</div>';
+  try{
+    const data = await apiRequest('/reports/roster');
+    if(version !== rosterLoadVersion) return;
+    rosterManageCache = data;
+    renderRosterManage();
+    await refreshRosterCache();
+  }catch(e){
+    if(version !== rosterLoadVersion) return;
+    rosterEl('rosterCount').textContent = '조회 실패';
+    list.innerHTML = `<div class="roster-empty" role="alert">명단을 불러오지 못했습니다.<br>${escapeHtml(e.message)}<div class="btn-row"><button type="button" class="btn ghost" id="rosterRetry">다시 불러오기</button></div></div>`;
+    rosterEl('rosterRetry').onclick=loadRosterManage;
+  }finally{if(version===rosterLoadVersion) list.setAttribute('aria-busy','false');}
+}
+function openRosterForm(id=null){
+  rosterEditingId=id;
+  const p=rosterManageCache.find(p=>Number(p.NTT_ID)===id);
+  rosterEl('rosterForm').reset();
+  rosterEl('rosterAddName').value=p?.NAME || '';
+  rosterEl('rosterAddGu').value=p?.GU ?? '';
+  rosterEl('rosterAddMission').checked=p?.ISMISSION==='Y';
+  rosterEl('rosterDialogTitle').textContent=p ? '인원 수정' : '인원 등록';
+  rosterEl('rosterAddBtn').textContent=p ? '변경 저장' : '인원 등록';
+  rosterEl('rosterAddError').textContent='';
+  ['rosterAddName','rosterAddGu'].forEach(id=>rosterEl(id).removeAttribute('aria-invalid'));
+  rosterEl('rosterDiscard').hidden=true;
+  rosterSnapshot=JSON.stringify(rosterValues());
+  rosterEl('rosterDialog').showModal();
+  rosterEl('rosterAddName').focus();
+}
+function closeRosterForm(){
+  if(rosterBusy) return;
+  if(JSON.stringify(rosterValues())!==rosterSnapshot){rosterEl('rosterDiscard').hidden=false;return;}
+  rosterEl('rosterDialog').close();
+}
+async function handleRosterAdd(event){
+  event.preventDefault();
+  if(rosterBusy || event.isComposing) return;
+  const values=rosterValues();
+  const error=rosterEl('rosterAddError');
+  error.textContent='';
+  ['rosterAddName','rosterAddGu'].forEach(id=>rosterEl(id).removeAttribute('aria-invalid'));
+  const invalid=!values.NAME ? 'rosterAddName' : (rosterEl('rosterAddGu').validity.badInput || (values.GU!==null && (!Number.isInteger(values.GU)||values.GU<1))) ? 'rosterAddGu' : null;
+  if(invalid){error.textContent=invalid==='rosterAddName' ? '이름을 입력해 주세요.' : '구역은 1 이상의 정수로 입력하거나 비워 두세요.';rosterEl(invalid).setAttribute('aria-invalid','true');rosterEl(invalid).focus();return;}
+  // 기존 사명 직책 값은 체크 여부를 바꾸지 않은 수정에서 보존한다.
+  const original=rosterManageCache.find(p=>Number(p.NTT_ID)===rosterEditingId);
+  if(original && (original.ISMISSION==='Y')===rosterEl('rosterAddMission').checked) values.ISMISSION=original.ISMISSION;
+  if(original && original.NAME===values.NAME && (original.GU ?? null)===values.GU && original.ISMISSION===values.ISMISSION){rosterEl('rosterDialog').close();return;}
+  rosterBusy=true;
+  const controls=[...rosterEl('rosterForm').querySelectorAll('input,button')];
+  controls.forEach(el=>el.disabled=true);
+  const btn=rosterEl('rosterAddBtn'), label=btn.textContent;
+  btn.textContent='저장 중…';btn.setAttribute('aria-busy','true');
+  try{
+    await apiRequest(rosterEditingId===null ? '/reports/member' : `/reports/member/${rosterEditingId}`,{method:rosterEditingId===null?'POST':'PUT',body:JSON.stringify(values)});
+    rosterEl('rosterDialog').close();
+    announce(`${values.NAME} 님을 ${rosterEditingId===null ? '등록' : '수정'}했습니다.`);
+    await loadRosterManage();
+    rosterEl('rosterNewBtn').focus();
+  }catch(e){error.textContent=`저장하지 못했습니다. ${e.message}`;}
+  finally{rosterBusy=false;controls.forEach(el=>el.disabled=false);btn.textContent=label;btn.removeAttribute('aria-busy');}
+}
+function handleRosterDelete(id){
+  const p=rosterManageCache.find(p=>Number(p.NTT_ID)===id);
+  const dialog=rosterEl('rosterDeleteDialog');
+  rosterEl('rosterDeleteDescription').textContent=`${rosterZoneName(p.GU)} · ${p.NAME} 님을 명단에서 삭제할까요?`;
+  rosterEl('rosterDeleteError').textContent='';
+  dialog.showModal();rosterEl('rosterDeleteCancel').focus();
+  rosterEl('rosterDeleteConfirm').onclick=async()=>{
+    if(rosterBusy) return;
+    rosterBusy=true;
+    const btn=rosterEl('rosterDeleteConfirm');btn.disabled=true;
+    rosterEl('rosterDeleteCancel').disabled=true;
+    try{await apiRequest(`/reports/member/${id}`,{method:'DELETE'});dialog.close();announce(`${p.NAME} 님을 삭제했습니다.`);await loadRosterManage();rosterEl('rosterNewBtn').focus();}
+    catch(e){rosterEl('rosterDeleteError').textContent=`삭제하지 못했습니다. ${e.message}`;}
+    finally{rosterBusy=false;btn.disabled=false;rosterEl('rosterDeleteCancel').disabled=false;}
+  };
+}
+let rosterImportRows = [];
+let rosterImportBusy = false;
+let rosterPreviewVersion = 0;
+async function rosterFileRequest(path, options={}){
+  const response=await fetch(`${API_BASE}${path}`,{...options,headers:{'X-Report-Auth':getAuthToken()}});
+  if(!response.ok){let message='요청하지 못했습니다. 다시 시도해 주세요.';try{message=(await response.json()).message || message;}catch(_){}throw new Error(response.status===401?'로그인이 만료되었습니다. 다시 로그인해 주세요.':message);}
+  return response;
+}
+function setupRosterImport(){
+  rosterEl('rosterTemplate').onclick=async()=>{
+    const button=rosterEl('rosterTemplate');button.disabled=true;
+    try{const res=await rosterFileRequest('/reports/member/template');const url=URL.createObjectURL(await res.blob());const link=document.createElement('a');link.href=url;link.download='인원등록_양식.xlsx';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    catch(e){rosterEl('rosterImportError').textContent=e.message;}
+    finally{button.disabled=false;}
+  };
+  rosterEl('rosterImportFile').onchange=async(event)=>{
+    const version=++rosterPreviewVersion;
+    const file=event.target.files[0];rosterImportRows=[];
+    rosterEl('rosterImportConfirm').hidden=true;rosterEl('rosterImportPreview').hidden=true;rosterEl('rosterImportError').textContent='';
+    if(!file)return;
+    if(!file.name.toLowerCase().endsWith('.xlsx') || file.size>5*1024*1024){rosterEl('rosterImportError').textContent='5MB 이하의 .xlsx 파일을 선택해 주세요.';return;}
+    rosterEl('rosterImportStatus').textContent=`${file.name} · 확인 중…`;
+    const data=new FormData();data.append('file',file);
+    try{
+      const response=await rosterFileRequest('/reports/member/import/preview',{method:'POST',body:data});const result=await response.json();
+      if(version!==rosterPreviewVersion)return;
+      rosterImportRows=result.rows;
+      const fresh=result.rows.filter(p=>!p.duplicate).length;
+      rosterEl('rosterImportStatus').textContent=`등록 예정 ${fresh}명 · 중복 제외 ${result.rows.length-fresh}명 · 오류 ${result.errors.length}건`;
+      rosterEl('rosterImportError').textContent=result.errors.join('\n');
+      const preview=rosterEl('rosterImportPreview');preview.hidden=false;
+      preview.innerHTML='<table><caption>등록 전 확인</caption><thead><tr><th>행</th><th>구역</th><th>이름</th><th>상태</th></tr></thead><tbody>'+result.rows.map(p=>`<tr><td>${escapeHtml(p.row)}</td><td>${escapeHtml(p.GU)}</td><td>${escapeHtml(p.NAME)}</td><td>${p.duplicate?'중복 제외':'등록 예정'}</td></tr>`).join('')+'</tbody></table>';
+      const confirm=rosterEl('rosterImportConfirm');confirm.hidden=!!result.errors.length || !fresh;confirm.textContent=`${fresh}명 일괄 등록`;
+    }catch(e){if(version===rosterPreviewVersion){rosterEl('rosterImportStatus').textContent='파일 확인 실패';rosterEl('rosterImportError').textContent=e.message;}}
+    finally{if(version===rosterPreviewVersion)event.target.value='';}
+  };
+  rosterEl('rosterImportConfirm').onclick=async()=>{
+    if(rosterImportBusy)return;
+    rosterImportBusy=true;const button=rosterEl('rosterImportConfirm');button.disabled=true;rosterEl('rosterImportFile').disabled=true;
+    rosterEl('rosterImportError').textContent='';
+    rosterEl('rosterImportStatus').textContent='명단을 등록하고 있습니다…';
+    try{
+      const result=await apiRequest('/reports/member/import',{method:'POST',body:JSON.stringify({rows:rosterImportRows.map(p=>({GU:p.GU,NAME:p.NAME}))})});
+      button.hidden=true;rosterImportRows=[];rosterEl('rosterImportPreview').hidden=true;
+      rosterEl('rosterImportStatus').textContent=`${result.created}명 등록 완료 · ${result.skipped}명 중복 제외`;
+      await loadRosterManage();announce(`${result.created}명을 일괄 등록했습니다.`);
+    }catch(e){rosterEl('rosterImportStatus').textContent='등록을 완료하지 못했습니다.';rosterEl('rosterImportError').textContent=e.message;}
+    finally{rosterImportBusy=false;button.disabled=false;rosterEl('rosterImportFile').disabled=false;}
+  };
+}
+function setupRosterManage(){
+  setupRosterImport();
+  rosterEl('rosterNewBtn').onclick=()=>openRosterForm();
+  rosterEl('rosterForm').onsubmit=handleRosterAdd;
+  rosterEl('rosterForm').addEventListener('keydown',e=>{if(e.key==='Enter' && e.isComposing)e.preventDefault();});
+  rosterEl('rosterCancel').onclick=closeRosterForm;
+  rosterEl('rosterDialog').addEventListener('cancel',e=>{e.preventDefault();closeRosterForm();});
+  rosterEl('rosterDiscardBtn').onclick=()=>rosterEl('rosterDialog').close();
+  rosterEl('rosterDeleteCancel').onclick=()=>rosterEl('rosterDeleteDialog').close();
+  rosterEl('rosterDeleteDialog').addEventListener('cancel',e=>{if(rosterBusy)e.preventDefault();});
+  const filter=()=>renderRosterManage();
+  rosterEl('rosterSearch').oninput=e=>{if(!e.isComposing)filter();};
+  rosterEl('rosterSearch').addEventListener('compositionend',filter);
+  rosterEl('rosterSearchClear').onclick=()=>{rosterEl('rosterSearch').value='';filter();rosterEl('rosterSearch').focus();};
+  window.addEventListener('beforeunload',e=>{if(rosterEl('rosterDialog').open && JSON.stringify(rosterValues())!==rosterSnapshot){e.preventDefault();e.returnValue='';}});
+}
+
 /* ctx: {kind:'svc', svc, zid, group} | {kind:'face', zid, group} */
 function chipKey(ctx, idx){
   return [ctx.kind, ctx.svc||'', ctx.zid, ctx.group, idx].join('|');
@@ -801,7 +1159,7 @@ function nameGroupHtml(ctx, names, extraClass){
 
 function renderReport(parsed, dateStr){
   const { services, faceOnly } = parsed;
-  const serviceOrder = Object.keys(services);
+  const serviceOrder = Object.keys(services).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
   const zoneIds = zoneIdsFromServices(services);
 
   document.getElementById('reportOutput').style.display = 'block';
@@ -1453,13 +1811,26 @@ function setupPageTabs(){
         panel.hidden = panel.dataset.tabPanel !== tab.dataset.tab;
       });
       if(tab.dataset.tab === 'insight'){ renderDashboard(); renderTodaySummary(); }
+      if(tab.dataset.tab === 'roster'){ loadRosterManage(); }
     });
   });
 }
 
+async function loadReportTitle(){
+  try{
+    const dept = await apiRequest('/reports/profile');
+    const title = `${dept.name} 분석 시스템`;
+    document.getElementById('reportTitle').textContent = title;
+    document.title = title;
+  }catch(e){ announce(`부서명을 불러오지 못했습니다. ${e.message}`); }
+}
+
 function initApp(){
+  loadReportTitle();
   document.getElementById('appRoot').style.display = 'block';
   setupPageTabs();
+
+  setupRosterManage();
 
   document.getElementById('parseBtn').onclick = async ()=>{
     const parseBtn = document.getElementById('parseBtn');
@@ -1588,7 +1959,110 @@ function initApp(){
   refreshRosterCache();
 }
 
-ensureAuth(initApp);
+/* ── 부서 관리자 화면 — 부서(CHOIDEPT) 자체를 추가/수정/삭제. 일반 "appRoot" 화면과는
+   완전히 분리된 별도 루트(#adminRoot)로 렌더링한다(토큰도 별도 세션). ── */
+let adminDepts = [];
+let adminEditingId = null;
+let deptBusy = false;
+let deptSnapshot = '';
+let deptLimit = 30;
+const deptEl = id => document.getElementById(id);
+const deptValues = () => ({NAME:deptEl('deptAddName').value.trim(),PASSWORD:deptEl('deptAddPassword').value.trim()});
+
+function renderAdminApp(){
+  let root=deptEl('adminRoot');
+  if(!root){root=document.createElement('div');root.id='adminRoot';root.className='app-shell';document.body.appendChild(root);}
+  root.innerHTML=`
+    <header class="app-header"><div><div class="eyebrow">주간보고 관리</div><h1>부서 관리자</h1><p class="sub">부서와 로그인 비밀번호를 관리합니다. 담당자는 등록한 비밀번호로 자기 부서의 명단과 보고에 접근합니다.</p></div><button type="button" class="btn ghost" id="adminLogoutBtn">로그아웃</button></header>
+    <main class="work-section">
+      <div class="section-heading"><div><div class="step-kicker">부서별 운영</div><h2>부서 목록</h2><p>부서를 찾고 정보를 수정하세요. 비밀번호는 수정창에서 확인할 수 있습니다.</p></div><button type="button" class="btn" id="deptNewBtn">+ 부서 등록</button></div>
+      <div class="roster-toolbar"><div class="roster-search"><label for="deptSearch">부서명 검색</label><div><input type="search" id="deptSearch" placeholder="찾을 부서명 입력" autocomplete="off"><button type="button" class="btn ghost" id="deptSearchClear" hidden>지우기</button></div></div><p id="deptCount" role="status"></p></div>
+      <div id="deptList" aria-busy="false"></div>
+    </main>
+    <dialog id="deptDialog" class="roster-dialog" aria-labelledby="deptDialogTitle">
+      <form id="deptForm" novalidate><header><p class="step-kicker">부서 정보</p><h2 id="deptDialogTitle">부서 등록</h2><p class="roster-help">부서명과 담당자가 사용할 로그인 비밀번호를 입력하세요.</p></header>
+      <div class="dept-fields"><div><label for="deptAddName">부서명 <span>(필수)</span></label><input id="deptAddName" maxlength="50" placeholder="예: 청년부" autocomplete="off" aria-describedby="deptAddError"></div>
+      <div><label for="deptAddPassword">로그인 비밀번호 <span>(필수)</span></label><div class="dept-password"><input type="password" id="deptAddPassword" maxlength="100" autocomplete="new-password" aria-describedby="deptPasswordHelp deptAddError"><button type="button" class="btn ghost" id="deptPasswordToggle" aria-label="비밀번호 표시" aria-pressed="false">표시</button></div><p id="deptPasswordHelp" class="roster-help">다른 부서에서 사용 중인 비밀번호는 등록할 수 없습니다.</p></div></div>
+      <p id="deptAddError" role="alert"></p><div id="deptDiscard" hidden><p>변경 내용을 저장하지 않고 닫을까요?</p><button type="button" class="btn ghost" id="deptDiscardBtn">저장하지 않고 닫기</button></div>
+      <footer><button type="button" class="btn ghost" id="deptCancel">취소</button><button type="submit" class="btn" id="deptAddBtn">부서 등록</button></footer></form>
+    </dialog>
+    <dialog id="deptDeleteDialog" class="roster-dialog" aria-labelledby="deptDeleteTitle"><h2 id="deptDeleteTitle">부서 삭제</h2><p id="deptDeleteDescription"></p><p class="roster-help">삭제한 부서로는 로그인할 수 없습니다. 소속 인원이 있는 부서는 삭제할 수 없습니다.</p><p id="deptDeleteError" role="alert"></p><footer><button type="button" class="btn ghost" id="deptDeleteCancel" autofocus>취소</button><button type="button" class="btn dept-danger" id="deptDeleteConfirm">부서 삭제</button></footer></dialog>`;
+  deptEl('adminLogoutBtn').onclick=()=>{clearAdminAuth();location.reload();};
+  deptEl('deptNewBtn').onclick=()=>openDeptForm();
+  deptEl('deptForm').onsubmit=saveDept;
+  deptEl('deptForm').onkeydown=e=>{if(e.key==='Enter' && e.isComposing)e.preventDefault();};
+  deptEl('deptPasswordToggle').onclick=()=>{
+    const input=deptEl('deptAddPassword'),button=deptEl('deptPasswordToggle'),show=input.type==='password';
+    input.type=show?'text':'password';button.textContent=show?'숨기기':'표시';button.setAttribute('aria-label',show?'비밀번호 숨기기':'비밀번호 표시');button.setAttribute('aria-pressed',String(show));
+  };
+  const close=()=>{if(deptBusy)return;if(JSON.stringify(deptValues())!==deptSnapshot){deptEl('deptDiscard').hidden=false;return;}deptEl('deptDialog').close();};
+  deptEl('deptCancel').onclick=close;
+  deptEl('deptDialog').oncancel=e=>{e.preventDefault();close();};
+  deptEl('deptDialog').onclose=()=>{deptEl('deptForm').reset();deptEl('deptAddPassword').type='password';deptSnapshot='';};
+  deptEl('deptDiscardBtn').onclick=()=>deptEl('deptDialog').close();
+  deptEl('deptDeleteCancel').onclick=()=>deptEl('deptDeleteDialog').close();
+  deptEl('deptDeleteDialog').oncancel=e=>{if(deptBusy)e.preventDefault();};
+  const filter=()=>{deptLimit=30;renderDeptList();};
+  deptEl('deptSearch').oninput=e=>{if(!e.isComposing)filter();};
+  deptEl('deptSearch').oncompositionend=filter;
+  deptEl('deptSearchClear').onclick=()=>{deptEl('deptSearch').value='';filter();deptEl('deptSearch').focus();};
+  window.addEventListener('beforeunload',e=>{if(deptEl('deptDialog')?.open && JSON.stringify(deptValues())!==deptSnapshot){e.preventDefault();e.returnValue='';}});
+  loadAdminDepts();
+}
+function renderDeptList(){
+  const query=deptEl('deptSearch').value.trim();
+  const matches=adminDepts.filter(d=>d.NAME.includes(query)).sort((a,b)=>a.NAME.localeCompare(b.NAME,'ko'));
+  deptEl('deptSearchClear').hidden=!query;
+  deptEl('deptCount').textContent=`전체 ${adminDepts.length}개 · 검색 결과 ${matches.length}개`;
+  const list=deptEl('deptList');
+  list.innerHTML=matches.length ? `<div class="roster-grid">${matches.slice(0,deptLimit).map(d=>`<section class="roster-zone dept-card"><h3>${escapeHtml(d.NAME)}</h3><p>부서 전용 로그인</p><div class="roster-actions"><button type="button" class="btn ghost" data-dept-edit="${d.ID}" aria-label="${escapeHtml(d.NAME)} 수정">수정</button><button type="button" class="btn ghost dept-delete" data-dept-del="${d.ID}" aria-label="${escapeHtml(d.NAME)} 삭제">삭제</button></div></section>`).join('')}</div>${matches.length>deptLimit?'<div class="btn-row"><button type="button" class="btn ghost" id="deptMore">30개 더 보기</button></div>':''}`
+    : `<div class="roster-empty">${adminDepts.length?'검색 결과가 없습니다. 부서명을 다시 확인해 주세요.':'등록된 부서가 없습니다. 부서 등록 버튼으로 추가해 주세요.'}</div>`;
+  list.querySelectorAll('[data-dept-edit]').forEach(button=>button.onclick=()=>openDeptForm(Number(button.dataset.deptEdit)));
+  list.querySelectorAll('[data-dept-del]').forEach(button=>button.onclick=()=>deleteDept(Number(button.dataset.deptDel)));
+  deptEl('deptMore')?.addEventListener('click',()=>{deptLimit+=30;renderDeptList();deptEl('deptMore')?.focus();});
+}
+async function loadAdminDepts(){
+  const list=deptEl('deptList');list.setAttribute('aria-busy','true');list.innerHTML='<div class="roster-empty" role="status">부서 목록을 불러오는 중…</div>';
+  try{adminDepts=await adminApiRequest('/reports/admin/depts');renderDeptList();}
+  catch(e){deptEl('deptCount').textContent='조회 실패';list.innerHTML=`<div class="roster-empty" role="alert">부서 목록을 불러오지 못했습니다.<br>${escapeHtml(e.message)}<div class="btn-row"><button type="button" class="btn ghost" id="deptRetry">다시 불러오기</button></div></div>`;deptEl('deptRetry').onclick=loadAdminDepts;}
+  finally{list.setAttribute('aria-busy','false');}
+}
+function openDeptForm(id=null){
+  adminEditingId=id;
+  const dept=adminDepts.find(d=>Number(d.ID)===id);
+  deptEl('deptForm').reset();deptEl('deptAddName').value=dept?.NAME || '';deptEl('deptAddPassword').value=dept?.PASSWORD || '';deptEl('deptAddPassword').type='password';
+  deptEl('deptPasswordToggle').textContent='표시';deptEl('deptPasswordToggle').setAttribute('aria-label','비밀번호 표시');deptEl('deptPasswordToggle').setAttribute('aria-pressed','false');
+  deptEl('deptDialogTitle').textContent=dept?'부서 수정':'부서 등록';deptEl('deptAddBtn').textContent=dept?'변경 저장':'부서 등록';
+  deptEl('deptAddError').textContent='';deptEl('deptDiscard').hidden=true;
+  ['deptAddName','deptAddPassword'].forEach(id=>deptEl(id).removeAttribute('aria-invalid'));
+  deptSnapshot=JSON.stringify(deptValues());deptEl('deptDialog').showModal();deptEl('deptAddName').focus();
+}
+async function saveDept(event){
+  event.preventDefault();if(deptBusy || event.isComposing)return;
+  const values=deptValues(),error=deptEl('deptAddError');error.textContent='';
+  ['deptAddName','deptAddPassword'].forEach(id=>deptEl(id).removeAttribute('aria-invalid'));
+  const invalid=!values.NAME?'deptAddName':!values.PASSWORD?'deptAddPassword':null;
+  if(invalid){error.textContent=invalid==='deptAddName'?'부서명을 입력해 주세요.':'로그인 비밀번호를 입력해 주세요.';deptEl(invalid).setAttribute('aria-invalid','true');deptEl(invalid).focus();return;}
+  if(adminEditingId!==null && JSON.stringify(values)===deptSnapshot){deptEl('deptDialog').close();return;}
+  deptBusy=true;
+  const controls=[...deptEl('deptForm').querySelectorAll('input,button')];controls.forEach(el=>el.disabled=true);
+  const button=deptEl('deptAddBtn'),label=button.textContent;button.textContent='저장 중…';button.setAttribute('aria-busy','true');
+  try{await adminApiRequest(adminEditingId===null?'/reports/admin/depts':`/reports/admin/depts/${adminEditingId}`,{method:adminEditingId===null?'POST':'PUT',body:JSON.stringify(values)});deptEl('deptDialog').close();announce(`${values.NAME} 부서를 ${adminEditingId===null?'등록':'수정'}했습니다.`);await loadAdminDepts();deptEl('deptNewBtn').focus();}
+  catch(e){error.textContent=`저장하지 못했습니다. ${e.message}`;}
+  finally{deptBusy=false;controls.forEach(el=>el.disabled=false);button.textContent=label;button.removeAttribute('aria-busy');}
+}
+function deleteDept(id){
+  const dept=adminDepts.find(d=>Number(d.ID)===id),dialog=deptEl('deptDeleteDialog');
+  deptEl('deptDeleteDescription').textContent=`${dept.NAME} 부서를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`;deptEl('deptDeleteError').textContent='';dialog.showModal();deptEl('deptDeleteCancel').focus();
+  deptEl('deptDeleteConfirm').onclick=async()=>{
+    if(deptBusy)return;deptBusy=true;deptEl('deptDeleteConfirm').disabled=true;deptEl('deptDeleteCancel').disabled=true;
+    try{await adminApiRequest(`/reports/admin/depts/${id}`,{method:'DELETE'});dialog.close();announce(`${dept.NAME} 부서를 삭제했습니다.`);await loadAdminDepts();deptEl('deptNewBtn').focus();}
+    catch(e){deptEl('deptDeleteError').textContent=`삭제하지 못했습니다. ${e.message}`;}
+    finally{deptBusy=false;deptEl('deptDeleteConfirm').disabled=false;deptEl('deptDeleteCancel').disabled=false;}
+  };
+}
+
+boot();
 </script>
 
 </body>

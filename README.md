@@ -1,6 +1,6 @@
 # choi3
 
-섭외자 관리 백오피스. 별도 배포되는 하위 프로젝트로, `gventus_web` 루트 저장소와는 git 이력이 분리되어 있다(`.gitignore`로 제외됨). 배포 방법·인프라 구성은 [DEPLOY.md](./DEPLOY.md) 참고.
+섭외자 관리 백오피스. 별도 배포되는 하위 프로젝트로, `gventus_web` 루트 저장소와는 git 이력이 분리되어 있다(`.gitignore`로 제외됨). 배포 방법·인프라 구성은 아래 [배포](#배포) 섹션 참고.
 
 `/hub`(`public/hub.html`)에서 이 프로젝트의 화면들(관리 시스템·7Ius67Cp·체크리스트)을 한 페이지에서 링크로 찾아볼 수 있다.
 
@@ -35,6 +35,86 @@ API_TARGET=http://localhost:8081 npm run dev -- --host    # http://localhost:517
 
 > 컬럼 타입을 바꾸는 등 `IF NOT EXISTS`로 표현 안 되는 변경(예: 과거 `CHOIMEETSCHEDULE.MEETYN`→`MEETST` 교체)은 적용 후 별도 파일 없이 이 스키마 파일 자체를 새 상태로 고쳐 쓰고, 운영 DB엔 그 변경분만 수동으로 반영한다.
 
+## 배포
+
+별도 repo → EC2, 서브도메인 `choi3.gventus.store`. 구성: 정적 빌드(nginx) + Flask API(gunicorn, PM2, `127.0.0.1:8001`) + 기존 EC2의 system MySQL.
+
+```
+브라우저 → https://choi3.gventus.store
+            ├─ /            → /home/ubuntu/choi3/dist  (정적, SPA 폴백)
+            └─ /api/*       → 127.0.0.1:8001  (gunicorn: server:app)
+                                └─ MySQL 127.0.0.1:3306  DB=choi3
+```
+
+### A. 최초 1회 (수동)
+
+**1) GitHub**
+- 이 폴더(`choi3/`)를 **새 저장소**로 만들고 push. 기본 브랜치 `main`.
+- 저장소 **Settings → Secrets and variables → Actions** 에 등록:
+
+| Secret | 필수 | 설명 |
+|---|---|---|
+| `SSH_KEY` | ✅ | EC2 접속용 개인키(.pem) 전체 내용 |
+| `EC2_HOST` | ✅ | EC2 퍼블릭 IP 또는 도메인 |
+| `OFFICE_PASSWORD` | 권장 | 백오피스 공통 비밀번호 (미설정 시 `choi3`) |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_NAME` | 선택 | EC2 MySQL 접속정보가 기본값과 다를 때만. 기본값: `127.0.0.1` / `3306` / `choi3` / `tjdgh2814@@` / `choi3` |
+
+**2) DNS**
+- `choi3.gventus.store` A레코드 → EC2 IP.
+
+**3) EC2 (SSH 접속 후)**
+```bash
+sudo mkdir -p /home/ubuntu/choi3/{dist,api,nginx}
+sudo chown -R ubuntu:ubuntu /home/ubuntu/choi3
+
+# Node (프론트 빌드는 Actions에서 하지만, 없으면 설치)
+node -v || (curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs)
+
+# PM2 (기존 gventus-api 로 이미 설치돼 있으면 생략)
+command -v pm2 || sudo npm install -g pm2
+
+# MySQL 확인 — 테이블/데이터가 들어있어야 함
+mysql -uchoi3 -p'tjdgh2814@@' choi3 -e "SHOW TABLES;"
+#  CHOIHIRE / CHOIMEETSCHEDULE / CHOIMEMBER 3개가 보여야 정상
+#  (스키마 새로 만들거나 최신화할 경우: mysql -uroot -p < mysql-init/01_schema.sql — 전부 IF NOT EXISTS라 기존 DB에 재실행해도 안전)
+
+# 인증서 발급 (nginx 플러그인)
+sudo certbot certonly --nginx -d choi3.gventus.store
+```
+
+> MySQL 타임존: `REG_DT`/`MOD_DT` 는 앱이 커넥션마다 `SET time_zone='+09:00'` 하므로 KST로 저장됩니다.
+> system MySQL 전역 타임존까지 KST로 맞추려면 `my.cnf` 에 `default-time-zone = '+09:00'` 후 재시작(선택).
+
+### B. 자동 배포 (push 시)
+
+`main` 에 push → `.github/workflows/deploy.yml` 실행:
+
+1. `npm ci && VITE_API_BASE_URL=/api npm run build` → `dist/`
+2. `dist/` → `EC2:/home/ubuntu/choi3/dist/` (rsync --delete)
+3. `local-api/` → `EC2:/home/ubuntu/choi3/api/`
+4. 시크릿을 `choi3.env` 로 만들어 서버에 전송
+5. venv + `pip install -r requirements.txt` (gunicorn 포함) → `pm2 restart choi3-api` (127.0.0.1:8001)
+6. `nginx/choi3.conf` → `/etc/nginx/sites-available/choi3` 링크 + `nginx -t` + `reload`
+
+수동 실행: Actions 탭 → Deploy choi3 to EC2 → Run workflow.
+
+### C. 접속
+
+```
+https://choi3.gventus.store/choi3-office/Y2hvaTM=
+비밀번호: OFFICE_PASSWORD (기본 choi3)
+```
+
+### D. 트러블슈팅
+
+| 증상 | 확인 |
+|---|---|
+| 502 Bad Gateway | `pm2 logs choi3-api` — gunicorn 죽었는지 / DB 접속 실패 |
+| API 401 전부 | `OFFICE_PASSWORD` 시크릿과 입력한 비번 불일치 |
+| `nginx -t` 실패로 워크플로우 중단 | 인증서 미발급 (A-3의 certbot). 발급 후 재실행 |
+| 페이지는 뜨는데 데이터 안 나옴 | `/api/` 프록시 확인, `pm2 status`, MySQL 접속정보 시크릿 |
+| 새 컬럼/테이블 없음 (신규 DB이거나 스키마가 최신이 아님) | `mysql -uroot -p < mysql-init/01_schema.sql` (IF NOT EXISTS라 기존 DB에 재실행해도 안전) |
+
 ## 신규 기능: 인원관리 시스템(`/7Ius67Cp`)
 
 출석 보고 텍스트를 붙여넣으면 구역별·시간대별로 자동 집계해주는 독립 페이지. `choi3.gventus.store/7Ius67Cp`로 접근(난독화된 경로, `sabujak-book`과 동일한 패턴).
@@ -42,13 +122,14 @@ API_TARGET=http://localhost:8081 npm run dev -- --host    # http://localhost:517
 - **파일**: `public/7Ius67Cp.html` — Vite 앱(`src/tabs/*`)에 속하지 않는 완전히 독립적인 단일 HTML 파일. `public/`에 있으므로 빌드 시 `dist/` 루트로 그대로 복사됨.
   - UI 전체가 한 번 크게 리디자인됨(작업 흐름을 01~05단계 사이드 네비게이션으로 구성, ARIA/`announce()` 토스트/`setBusy()` 버튼 상태 등 추가) — `DESIGN.md`/`UX-CONTRACT.md`/`premium-ui.json` 참고(사용자가 직접 작업, 이 README와 별개로 관리됨). 로직(파싱/병합/대시보드/대조/❌ 처리 등)은 그대로고 마크업 구조·클래스명·이벤트 바인딩 방식(`onclick=""` → `addEventListener`)만 바뀌었으니, 기능을 찾을 땐 `id`/함수명으로 검색할 것.
 - **라우팅**: `nginx/choi3.conf`의 `location = /7Ius67Cp { try_files /7Ius67Cp.html =404; }`
-- **인증**: choi3 SPA(본프로젝트) 로그인과 **완전히 분리된 별도 인증 영역** (권한 최소화 목적 — 이 페이지만 여는 사람에게 CHOIHIRE 등 섭외자 개인정보가 있는 본프로젝트 접근권을 줄 필요가 없음)
-  - 비밀번호: `REPORT_PASSWORD` env (기본값 `SIM_KEY`, 로컬 개발용) — 본프로젝트의 `OFFICE_PASSWORD`와 별개
-  - 로그인: `POST /api/reports/auth/login` (본프로젝트는 `POST /api/auth/login`)
-  - 토큰: 별도 서명 salt(`report-session`)로 발급 — 본프로젝트 토큰(`X-Office-Auth`)으로 `/reports/*` 호출 불가, 반대로 이 토큰(`X-Report-Auth`)으로 `/outreach`·`/meetings` 등 다른 라우트 호출 불가 (`local-api/auth.py`의 `EXEMPT_PREFIXES` + `reports_bp.before_request(require_report_auth)`로 구현)
-  - 프론트 localStorage 키: `choi3_report_token`/`choi3_report_exp` (본프로젝트는 `choi3_office_token`/`choi3_office_exp`) — 세션 자체가 공유되지 않음
-  - 운영 배포 시 GitHub Actions 시크릿 + `choi3.env`에 `REPORT_PASSWORD` 추가 필요 (아직 미등록 — 기본값 `SIM_KEY`로 운영 중이라면 반드시 별도 값으로 교체할 것)
-- **저장**: `CHOIREPORT` 테이블(날짜별 파싱 결과 JSON) — `local-api/routes/reports.py`의 `GET/PUT /reports/<date>`, `GET /reports` 사용. (처음엔 브라우저 `localStorage`로 구현했다가, "다른 사람/기기에서도 같은 기록이 보여야 한다"는 이유로 서버 저장으로 전환함)
+- **인증**: choi3 SPA(본프로젝트) 로그인과 **완전히 분리된 별도 인증 영역** (권한 최소화 목적 — 이 페이지만 여는 사람에게 CHOIHIRE 등 섭외자 개인정보가 있는 본프로젝트 접근권을 줄 필요가 없음). 이 안에서도 다시 두 종류로 나뉜다(2026-10 부서 체계 도입, 공용 `REPORT_PASSWORD` 는 폐지됨):
+  - **부서 로그인** — `CHOIDEPT` 테이블(부서별 이름+비밀번호)로 인증. 부서는 구역(GU)들을 묶는 상위 단위로, 로그인한 부서의 구역·인원(`CHOIMEMBER.DEPT_ID`)·주간보고(`CHOIREPORT.DEPT_ID`)만 보고 관리할 수 있다. 로그인: `POST /api/reports/auth/login` — 토큰(`X-Report-Auth`)에 부서 ID(`dept_id`)가 서명되어 들어감.
+  - **관리자 로그인** — 부서(`CHOIDEPT`) 자체를 추가/수정/삭제하는 전용 로그인. 비밀번호는 `CHOIDEPT_ADMIN` 테이블(단일 행, `CHOICHECKLIST_ADMIN`과 동일 패턴)에 저장되어 있어 env 고정값이 아님. 로그인: `POST /api/reports/admin/login` — 토큰에 `admin: true` 가 서명되어 들어감(부서 ID 없음 → 특정 부서 데이터는 조회 불가, `local-api/routes/reports.py`의 `_require_dept`/`_require_admin` 가드로 구분). 화면 진입은 로그인 화면의 "부서 관리자이신가요?" 링크로 모드를 전환해서 들어간다 — 완전히 별도 세션(`choi3_report_admin_token`, appRoot 대신 `#adminRoot`에 렌더링)이라 부서 로그인과 동시에 유지 가능.
+  - 두 토큰 모두 같은 헤더(`X-Report-Auth`)·같은 서명키를 쓰지만 payload 모양이 다름(`{dept_id}` vs `{admin:true}`) — 본프로젝트 토큰(`X-Office-Auth`)과는 여전히 호환 안 됨 (`local-api/auth.py`의 `EXEMPT_PREFIXES` + `reports_bp.before_request(require_report_auth)`로 구현)
+  - 프론트 localStorage 키: 부서 `choi3_report_token`/`choi3_report_exp`, 관리자 `choi3_report_admin_token`/`choi3_report_admin_exp` (본프로젝트는 `choi3_office_token`/`choi3_office_exp`) — 세 세션 모두 서로 공유되지 않음
+  - 로컬 개발용 기본값: 기본부서 비밀번호 `changeme`, 관리자 비밀번호 `changeme-admin` (운영 배포 전 반드시 "관리자" 화면/DB에서 교체할 것)
+- **인원 관리**: "인원 관리" 탭에서 로그인한 부서 소속으로 사람을 바로 등록/수정/삭제할 수 있다(`POST/PUT/DELETE /api/reports/member[/<id>]`) — choi3 메인 SPA "구역 관리"와 같은 `CHOIMEMBER` 테이블을 공유. 이전엔 분석 화면 안에서 "구역명단에 없음(미등록자)" 경고만 띄우고 등록/수정은 메인 SPA에서만 가능했는데, 이제 이 페이지에서 바로 할 수 있다. 수정·삭제는 `NTT_ID`+`DEPT_ID`로 소유권을 확인해서 다른 부서 소속 인원은 건드릴 수 없다(`routes/reports.py`의 `report_member_update`/`report_member_delete`). 삭제는 `CHOIMEMBER`에서 완전히 지워지므로 메인 SPA "구역 관리"에서도 함께 사라진다.
+- **저장**: `CHOIREPORT` 테이블(부서+날짜별 파싱 결과 JSON, PK는 `DEPT_ID, REPORT_DT`) — `local-api/routes/reports.py`의 `GET/PUT /reports/<date>`, `GET /reports` 사용. (처음엔 브라우저 `localStorage`로 구현했다가, "다른 사람/기기에서도 같은 기록이 보여야 한다"는 이유로 서버 저장으로 전환함)
 - **이름 단위 수동 수정**: 렌더링된 구역/얼굴만-본-자 명단의 각 이름이 칩(chip) 형태로 표시되어 클릭하면 인라인 수정, ×로 삭제 가능. 수정 즉시 `PUT /reports/<date>`로 저장됨. 구역 카드의 펼침 상태는 `openZoneId` 전역 변수로 재렌더링 후에도 유지.
   - **이름 추가는 두 가지**: (1) `<select class="name-add-select">` — 그 구역(`CHOIMEMBER`, `rosterCache`)에 속한 사람 중 **이미 추가된 사람은 제외**하고 나열, 골라서 바로 추가(오타·구역 불일치 원천 차단). (2) `<input class="name-add-input">` — 로스터에 없는 미등록자(방문자 등)를 위한 자유 입력, 그대로 유지. `rosterCache`는 `initApp()`에서 한 번 불러와 전역 캐시(`refreshRosterCache()`) — 매 렌더마다 다시 조회하지 않음.
 - **같은 날짜 재붙여넣기 = 병합** (덮어쓰기 아님): 파싱 전에 `GET /reports/<date>`로 기존 기록 유무를 확인해서

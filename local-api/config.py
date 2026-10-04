@@ -25,10 +25,11 @@ OFFICE_PASSWORD = os.environ.get('OFFICE_PASSWORD', 'choi3')
 SESSION_TTL     = int(os.environ.get('SESSION_TTL', '1800'))   # 세션 유효시간(초). 1800 = 30분
 SESSION_SECRET  = os.environ.get('SESSION_SECRET', 'choi3-office::' + OFFICE_PASSWORD)
 
-# ── /reports(7Ius67Cp) 전용 비밀번호 인증 — 본프로젝트 로그인과 완전히 분리된
-#    별도 토큰 체계(권한 최소화: 이 비밀번호로는 /reports/* 외 접근 불가). ──────
-REPORT_PASSWORD = os.environ.get('REPORT_PASSWORD', 'SIM_KEY')
-REPORT_SESSION_SECRET = os.environ.get('REPORT_SESSION_SECRET', 'choi3-report::' + REPORT_PASSWORD)
+# ── /reports(7Ius67Cp) 전용 인증 — 본프로젝트 로그인과 완전히 분리된 별도 토큰 체계
+#    (권한 최소화: 이 토큰으로는 /reports/* 외 접근 불가). 비밀번호는 부서(CHOIDEPT)마다
+#    달라서 고정 env 가 아니라 DB에 저장 — 여기 시크릿은 로그인 성공 후 발급하는 토큰
+#    서명(부서 ID 포함)에만 쓴다.
+REPORT_SESSION_SECRET = os.environ.get('REPORT_SESSION_SECRET', 'choi3-report-session')
 REPORT_SESSION_TTL = int(os.environ.get('REPORT_SESSION_TTL', '600'))  # 7Ius67Cp 로그인 유효시간(초): 10분
 
 # ── /mychecklist(c0p3X0jZsu) 관리자 전용 비밀번호 인증 — 이쪽도 본프로젝트 로그인과

@@ -9,8 +9,33 @@ FLUSH PRIVILEGES;
 
 USE choi3;
 
+-- 부서 — 구역(GU)들을 묶는 상위 단위. 부서마다 전용 비밀번호로 주간보고(7Ius67Cp.html)에
+-- 로그인하며, 로그인한 부서의 구역/인원/보고 데이터만 보인다. 부서 생성·관리는 choi3 메인
+-- SPA 가 아니라 7Ius67Cp.html 안의 별도 "관리자" 화면(아래 CHOIDEPT_ADMIN)에서 한다.
+-- PASSWORD 는 UNIQUE — 로그인이 비밀번호 하나만으로 부서를 식별하므로 중복되면 안 됨.
+CREATE TABLE IF NOT EXISTS CHOIDEPT (
+    ID       INT          NOT NULL AUTO_INCREMENT,
+    NAME     VARCHAR(50)  NOT NULL,
+    PASSWORD VARCHAR(100) NOT NULL,
+    REG_DT   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ID),
+    UNIQUE KEY uk_dept_password (PASSWORD)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 부서 관리자 비밀번호(단일 행) — 7Ius67Cp.html 안의 "관리자" 화면(부서 추가/수정)
+-- 전용. 부서별 로그인 비밀번호(CHOIDEPT.PASSWORD)·choi3 본프로젝트 OFFICE_PASSWORD 와는
+-- 완전히 별개. CHOICHECKLIST_ADMIN 과 동일한 패턴(DB 저장이라 관리자가 화면에서 바꿀 수 있음).
+CREATE TABLE IF NOT EXISTS CHOIDEPT_ADMIN (
+    ID       TINYINT      NOT NULL,
+    PASSWORD VARCHAR(100) NOT NULL,
+    PRIMARY KEY (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO CHOIDEPT_ADMIN (ID, PASSWORD) VALUES (1, 'changeme-admin');
+
 CREATE TABLE IF NOT EXISTS CHOIMEMBER (
     NTT_ID  INT          NOT NULL,
+    DEPT_ID INT          NOT NULL DEFAULT 1,   -- 소속 부서 (CHOIDEPT.ID)
     GU      VARCHAR(100),
     NAME    VARCHAR(100),
     TA      CHAR(1)      DEFAULT 'N',
@@ -61,12 +86,14 @@ CREATE TABLE IF NOT EXISTS CHOIMEETSCHEDULE (
     KEY idx_meet_hireid (HIREID)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 부서별로 완전히 분리된 보고 — 같은 날짜라도 부서마다 별도 행(PK가 DEPT_ID+REPORT_DT).
 CREATE TABLE IF NOT EXISTS CHOIREPORT (
+    DEPT_ID    INT          NOT NULL DEFAULT 1,   -- 소속 부서 (CHOIDEPT.ID)
     REPORT_DT  DATE         NOT NULL,      -- 주일 날짜
     DATA       JSON         NOT NULL,      -- 파싱된 결과(services/faceOnly/mismatches) 통째로 저장
     REG_DT     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     MOD_DT     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (REPORT_DT)
+    PRIMARY KEY (DEPT_ID, REPORT_DT)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 사명자(ISMISSION='Y') 체크리스트 — 관리시스템 밖 독립 공개 페이지(c0p3X0jZsu.html) 전용.
@@ -109,6 +136,10 @@ CREATE TABLE IF NOT EXISTS CHOICHECKLIST_ADMIN (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT IGNORE INTO CHOICHECKLIST_ADMIN (ID, PASSWORD) VALUES (1, 'chlrkd3qn');
+
+-- 기본 부서 — 부서 개념 도입 이전 데이터(DEPT_ID 기본값 1)가 속하는 자리. 비밀번호는
+-- 반드시 7Ius67Cp.html "관리자" 화면에서 실제 값으로 바꿀 것(공용 REPORT_PASSWORD 는 폐지됨).
+INSERT IGNORE INTO CHOIDEPT (ID, NAME, PASSWORD) VALUES (1, '기본부서', 'changeme');
 
 INSERT INTO CHOICHECKLIST_ITEM (DOW, LABEL, SORT_ORDER)
 SELECT d.dow, '', s.seq FROM

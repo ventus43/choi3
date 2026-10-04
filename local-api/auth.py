@@ -6,7 +6,7 @@
   - 프론트는 401 을 받으면 저장 토큰을 지우고 로그인 화면으로 돌아감.
 토큰은 stateless(itsdangerous 서명) — 별도 세션 저장소/DB 불필요. 만료 전 강제 폐기는 불가.
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from config import (
@@ -29,7 +29,7 @@ EXEMPT_PREFIXES = ('/reports', '/mychecklist')
 # /reports(7Ius67Cp) 전용 서명키 — 본프로젝트(_signer)와 salt/secret 이 달라
 # 토큰이 서로 호환되지 않는다(한쪽 토큰으로 다른 쪽 API 호출 시 401).
 _report_signer = URLSafeTimedSerializer(REPORT_SESSION_SECRET, salt='report-session')
-REPORT_PUBLIC_PATHS = {'/reports/auth/login'}
+REPORT_PUBLIC_PATHS = {'/reports/auth/login', '/reports/admin/login'}
 
 
 def issue_token():
@@ -44,16 +44,21 @@ def token_valid(token):
         return False
 
 
-def issue_report_token():
-    return _report_signer.dumps({'ok': True})
+def issue_report_token(dept_id):
+    return _report_signer.dumps({'dept_id': dept_id})
 
 
-def report_token_valid(token):
+def issue_report_admin_token():
+    """부서 자체(CHOIDEPT)를 추가/수정하는 관리자용 — 특정 부서에 속하지 않는 별도 권한."""
+    return _report_signer.dumps({'admin': True})
+
+
+def decode_report_token(token):
+    """유효하면 토큰 payload({'dept_id': N} 또는 {'admin': True})를, 아니면 None 을 반환."""
     try:
-        _report_signer.loads(token, max_age=REPORT_SESSION_TTL)
-        return True
+        return _report_signer.loads(token, max_age=REPORT_SESSION_TTL)
     except (BadSignature, SignatureExpired):
-        return False
+        return None
 
 
 # /mychecklist(c0p3X0jZsu) 관리자 전용 서명키 — 비밀번호 자체는 DB(CHOICHECKLIST_ADMIN)에
@@ -87,13 +92,18 @@ def require_auth():
 
 
 def require_report_auth():
-    """reports_bp.before_request 로 등록 — /reports/* 전용 별도 토큰 검사."""
+    """reports_bp.before_request 로 등록 — /reports/* 전용 별도 토큰 검사.
+    부서 토큰은 g.dept_id 에, 관리자 토큰은 g.is_report_admin=True 로 담아, 이후 라우트가
+    (부서 전용 데이터 / 부서 관리 전용) 접근을 각자 구분해서 막는다."""
     if request.method == 'OPTIONS':
         return None
     if request.path in REPORT_PUBLIC_PATHS:
         return None
-    if not report_token_valid(request.headers.get('X-Report-Auth', '')):
+    data = decode_report_token(request.headers.get('X-Report-Auth', ''))
+    if data is None:
         return jsonify({'message': '세션이 만료되었습니다. 다시 로그인해 주세요.'}), 401
+    g.dept_id = data.get('dept_id')
+    g.is_report_admin = bool(data.get('admin'))
     return None
 
 
