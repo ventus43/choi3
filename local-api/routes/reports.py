@@ -273,6 +273,17 @@ def report_member_delete(ntt_id):
         return ('', 204)
 
 
+@reports_bp.route('/reports/member/zone/<gu>', methods=['DELETE'])
+def report_member_delete_zone(gu):
+    """"인원 관리" 탭의 구역별 전체삭제 — 로그인한 부서 소속, 해당 구역 인원을 한 번에 지운다
+    (개별 삭제와 동일하게 DEPT_ID로 소유권 확인, 다른 부서 구역은 건드릴 수 없음)."""
+    if (err := _require_dept()):
+        return err
+    with db_cursor(commit=True) as cur:
+        cur.execute('DELETE FROM CHOIMEMBER WHERE GU=%s AND DEPT_ID=%s', (gu, g.dept_id))
+        return jsonify({'deleted': cur.rowcount})
+
+
 @reports_bp.route('/reports', methods=['GET'])
 def report_list():
     if (err := _require_dept()):
