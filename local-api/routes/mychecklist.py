@@ -30,6 +30,8 @@ mychecklist_bp = Blueprint('mychecklist', __name__)
 DOWS = (1, 2, 3, 4, 5, 6, 7)   # 1=월 ... 7=일
 _KST = datetime.timezone(datetime.timedelta(hours=9))
 _DAY_CUTOFF_HOUR = 10   # KST 오전 10시 이전은 "전날"로 취급
+_CHECK_DEADLINE_HOUR = 1   # 체크 마감: 그 날짜(CHK_DATE) 다음날 KST 오전 1시가 지나면 체크/해제 불가
+                           # (예: 수요일 항목은 목요일 오전 1시 이후 잠김)
 
 
 def _checklist_today():
@@ -39,6 +41,14 @@ def _checklist_today():
     if now.hour < _DAY_CUTOFF_HOUR:
         d -= datetime.timedelta(days=1)
     return d
+
+
+def _check_deadline_passed(chk_date):
+    """그 날짜 체크/해제가 더 이상 허용되지 않는지 — 다음날 오전 1시 마감."""
+    deadline = datetime.datetime.combine(
+        chk_date + datetime.timedelta(days=1), datetime.time(_CHECK_DEADLINE_HOUR, 0), tzinfo=_KST,
+    )
+    return datetime.datetime.now(_KST) >= deadline
 
 
 def _week_start(d):
@@ -110,7 +120,8 @@ def mychecklist_detail(ntt_id):
         )
         stamped = [r['DOW'] for r in cur.fetchall()]
 
-        return jsonify({'member': member, 'items': items, 'state': state, 'stamped': stamped, 'today': _today_dow()})
+        locked = [dow for dow, d in zip(DOWS, week_dates) if _check_deadline_passed(d)]
+        return jsonify({'member': member, 'items': items, 'state': state, 'stamped': stamped, 'today': _today_dow(), 'locked': locked})
 
 
 @mychecklist_bp.route('/mychecklist/<int:ntt_id>/check', methods=['PUT'])
@@ -132,6 +143,8 @@ def mychecklist_check(ntt_id):
         if not item:
             return jsonify({'message': '존재하지 않는 항목입니다.'}), 400
         chk_date = _date_for_dow(item['DOW'])
+        if _check_deadline_passed(chk_date):
+            return jsonify({'message': '마감 시간(새벽 1시)이 지나 체크할 수 없습니다.'}), 403
 
         cur.execute(
             'INSERT INTO CHOICHECKLIST (NTT_ID, ITEM_ID, CHK_DATE, CHECKED) VALUES (%s,%s,%s,%s)'

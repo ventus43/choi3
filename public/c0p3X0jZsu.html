@@ -94,7 +94,9 @@
 
   .user-day-card{background:#fafbfc; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px;}
   .user-day-card.today{background:var(--accent-soft); border-color:var(--accent);}
+  .user-day-card.locked{opacity:.6;}
   .user-day-head{display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; margin-bottom:8px;}
+  .locked-badge{color:var(--sub); font-size:12px; font-weight:400;}
 
   .item-tag-grid{display:flex; flex-direction:column; gap:8px;}
   @media (min-width:640px){
@@ -107,6 +109,7 @@
   }
   .item-tag.is-checked{background:var(--accent); border-color:var(--accent); color:#fff;}
   .item-tag.is-checked::before{content:"✓ ";}
+  .item-tag[data-locked="1"]{cursor:not-allowed;}
 
   .other-days{margin-top:14px;}
   .other-days summary{cursor:pointer; font-size:13px; font-weight:700; color:var(--accent); padding:8px 0; list-style:none;}
@@ -300,22 +303,23 @@ loginInput.addEventListener('keydown', e => { if(e.key === 'Enter') runLogin(); 
 // ── 사용자 화면 ──
 let userState = null; // { nttId, items, checkedSet, today, stamped }
 
-function dayCardHtml(dow, dayItems, checkedSet, isToday, isStamped){
+function dayCardHtml(dow, dayItems, checkedSet, isToday, isStamped, isLocked){
   return `
-    <div class="user-day-card ${isToday ? 'today' : ''}">
+    <div class="user-day-card ${isToday ? 'today' : ''} ${isLocked ? 'locked' : ''}">
       <div class="user-day-head">
         <span>${DOW_LABEL[dow]}요일${isToday ? ' · 오늘' : ''}</span>
         ${isStamped ? '<span class="stamp-icon">★ 스탬프</span>' : ''}
+        ${isLocked ? '<span class="locked-badge">마감</span>' : ''}
       </div>
       ${dayItems.length === 0
         ? '<div class="note">등록된 항목이 없습니다.</div>'
         : `<div class="item-tag-grid">${dayItems.map(it => `
-            <a href="#" class="item-tag ${checkedSet.has(it.ID) ? 'is-checked' : ''}" data-item="${it.ID}">${it.LABEL || '(항목 미설정)'}</a>`).join('')}</div>`}
+            <a href="#" class="item-tag ${checkedSet.has(it.ID) ? 'is-checked' : ''}" data-item="${it.ID}" data-locked="${isLocked ? '1' : ''}">${it.LABEL || '(항목 미설정)'}</a>`).join('')}</div>`}
     </div>`;
 }
 
 function renderUserTable(){
-  const { items, checkedSet, today, stamped } = userState;
+  const { items, checkedSet, today, stamped, locked } = userState;
   const wrap = document.getElementById('userTableWrap');
   const byDow = new Map(DOWS.map(d => [d, []]));
   items.forEach(it => byDow.get(it.DOW)?.push(it));
@@ -323,10 +327,10 @@ function renderUserTable(){
   const otherDows = DOWS.filter(d => d !== today);
 
   wrap.innerHTML = `
-    ${dayCardHtml(today, byDow.get(today) || [], checkedSet, true, stamped.includes(today))}
+    ${dayCardHtml(today, byDow.get(today) || [], checkedSet, true, stamped.includes(today), locked.includes(today))}
     <details class="other-days">
       <summary>다른 요일 체크 (이번 주 일요일까지)</summary>
-      ${otherDows.map(dow => dayCardHtml(dow, byDow.get(dow) || [], checkedSet, false, stamped.includes(dow))).join('')}
+      ${otherDows.map(dow => dayCardHtml(dow, byDow.get(dow) || [], checkedSet, false, stamped.includes(dow), locked.includes(dow))).join('')}
     </details>`;
 
   wrap.querySelectorAll('.item-tag').forEach(tag => {
@@ -338,6 +342,10 @@ function renderUserTable(){
 }
 
 async function toggleUserCheck(tag){
+  if(tag.dataset.locked){
+    alert('마감 시간(다음날 새벽 1시)이 지나 체크할 수 없습니다.');
+    return;
+  }
   const itemId = Number(tag.dataset.item);
   const next = !tag.classList.contains('is-checked');
   tag.classList.toggle('is-checked', next);
@@ -369,6 +377,7 @@ async function loadUser(nttId){
       checkedSet: new Set(data.state.filter(s => s.CHECKED === 'Y').map(s => s.ITEM_ID)),
       today: data.today,
       stamped: data.stamped,
+      locked: data.locked,
     };
     renderUserTable();
   }catch(e){
