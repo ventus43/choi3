@@ -202,9 +202,10 @@ const ROLES = [
   ['gyoGu', 'gyosa',   '교사'],
 ];
 
-/* 교사 이름은 구역관리에 등록된 교사(TA='Y') 중에서 select. 그 외 역할은 자유 입력. */
-function pfNameField(nameKey, label, val) {
-  if (nameKey !== 'gyosa') {
+/* 교사 이름은 구역관리에 등록된 교사(TA='Y') 중에서 select. 그 외 역할은 자유 입력.
+   단 "그외"(부서 소속이 아닌 외부 인원) 체크 시에는 교사도 이름 직접입력으로 전환. */
+function pfNameField(nameKey, label, val, etc) {
+  if (nameKey !== 'gyosa' || etc) {
     return `<input type="text" class="pf-name" placeholder="${label}자 이름" data-pf="${nameKey}" value="${val ?? ''}">`;
   }
   const cur = val ?? '';
@@ -222,13 +223,28 @@ function pfNameField(nameKey, label, val) {
   return `<select class="pf-name" data-pf="gyosa">${opts.join('')}</select>`;
 }
 
-function personForm(e) {
-  const rows = ROLES.map(([guKey, nameKey, label]) => `
-    <div class="pf-row">
+/* 교사 이름이 구역관리 명단(teachers)에 없는 외부 인원이면 "그외" 기본 체크 */
+function isEtcDefault(nameKey, val) {
+  if (nameKey !== 'gyosa' || !val) return false;
+  return !teachers.some((t) => t.NAME === val);
+}
+
+/* "그외" 체크: 부서 구역에 속하지 않는 외부 인원 — 구역 입력을 비우고(집계 제외),
+   교사는 명단 select 대신 이름 직접입력으로 바꾼다. */
+function pfRow(e, guKey, nameKey, label) {
+  const etc = isEtcDefault(nameKey, e[nameKey]);
+  const guVal = etc ? '' : (e[guKey] ?? '');
+  return `
+    <div class="pf-row" data-role="${nameKey}">
       <span class="pf-role">${label}</span>
-      <input type="number" class="pf-gu" min="1" placeholder="구역" data-pf="${guKey}" value="${e[guKey] ?? ''}">
-      ${pfNameField(nameKey, label, e[nameKey])}
-    </div>`).join('');
+      <input type="number" class="pf-gu" min="1" placeholder="구역" data-pf="${guKey}" value="${guVal}"${etc ? ' disabled' : ''}>
+      <label class="pf-etc"><input type="checkbox" class="pf-etc-check" data-etc-role="${nameKey}"${etc ? ' checked' : ''}> 그외</label>
+      ${pfNameField(nameKey, label, e[nameKey], etc)}
+    </div>`;
+}
+
+function personForm(e) {
+  const rows = ROLES.map(([guKey, nameKey, label]) => pfRow(e, guKey, nameKey, label)).join('');
   const meetVal = String(e.meetCn ?? '').replace(/"/g, '&quot;');
   const nameVal = String(e.name ?? '').replace(/"/g, '&quot;');
   return `
@@ -266,6 +282,36 @@ function personSummaryShort(e) {
       return `<span class="person-tag">${ROLE_ABBR[label]}:${name}${e[guKey] ? `(${e[guKey]})` : ''}</span>`;
     })
     .join('');
+}
+
+function bindGyosaSelect(sel) {
+  sel.addEventListener('change', () => {
+    const t = teachers.find((x) => x.NAME === sel.value);
+    const guInput = sel.closest('.pf-row')?.querySelector('.pf-gu');
+    if (t && guInput && t.GU != null && t.GU !== '') guInput.value = t.GU;
+  });
+}
+
+/* "그외" 체크박스 토글: 구역 입력 비활성화·초기화(집계 제외), 교사는 select ↔ 이름 직접입력 전환 */
+function handleEtcToggle(cb) {
+  const row = cb.closest('.pf-row');
+  const guInput = row?.querySelector('.pf-gu');
+  if (!guInput) return;
+  const etc = cb.checked;
+
+  guInput.disabled = etc;
+  if (etc) guInput.value = '';
+
+  const nameKey = cb.dataset.etcRole;
+  if (nameKey !== 'gyosa') return;
+
+  const nameEl = row.querySelector('.pf-name');
+  const label = row.querySelector('.pf-role')?.textContent || '교사';
+  const wrap = document.createElement('div');
+  wrap.innerHTML = pfNameField('gyosa', label, nameEl.value.trim(), etc);
+  const newEl = wrap.firstElementChild;
+  nameEl.replaceWith(newEl);
+  if (newEl.tagName === 'SELECT') bindGyosaSelect(newEl);
 }
 
 function render() {
@@ -357,12 +403,10 @@ function render() {
   });
 
   // 교사 select 변경 시 같은 줄 "교사 구역" 칸을 그 교사의 등록 구역으로 채움
-  els.groups.querySelectorAll('select[data-pf="gyosa"]').forEach((sel) => {
-    sel.addEventListener('change', () => {
-      const t = teachers.find((x) => x.NAME === sel.value);
-      const guInput = sel.closest('.pf-row')?.querySelector('.pf-gu[data-pf="gyoGu"]');
-      if (t && guInput && t.GU != null && t.GU !== '') guInput.value = t.GU;
-    });
+  els.groups.querySelectorAll('select[data-pf="gyosa"]').forEach(bindGyosaSelect);
+
+  els.groups.querySelectorAll('.pf-etc-check').forEach((cb) => {
+    cb.addEventListener('change', () => handleEtcToggle(cb));
   });
 
   els.groups.querySelectorAll('[data-tm]').forEach((btn) => {

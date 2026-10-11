@@ -59,6 +59,11 @@
   background: var(--surface); color: var(--ink);
 }
 .pf-gu:focus, .pf-name:focus { outline: none; border-color: var(--primary); }
+.pf-gu:disabled { background: var(--surface-2); color: var(--ink-soft); }
+.pf-etc {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--ink-soft); white-space: nowrap;
+}
 .pf-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ── 세그먼트 버튼(멤버 구역 필터) ── */
