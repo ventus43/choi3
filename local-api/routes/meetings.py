@@ -1,4 +1,6 @@
 """/meetings/*, /outreach/<hire>/meetings  (CHOIMEETSCHEDULE) — 만남 스케줄."""
+import datetime
+
 from flask import Blueprint, jsonify, request
 
 from db import db_cursor
@@ -6,6 +8,29 @@ from serializers import _MEET_HIRE_JOIN, meet_to_json, meeting_with_hire_to_json
 from sqlpatch import build_update
 
 meetings_bp = Blueprint('meetings', __name__)
+
+_KST = datetime.timezone(datetime.timedelta(hours=9))
+
+# 날짜가 지난 '선택'(MEETST=1) 건을 자동 취소 처리할 때 CANCELRS 에 심는 표식.
+# meeting_update() 가 이 표식을 보고 "자동 취소였는지"(수동 취소와 구분)를 판단한다.
+AUTO_EXPIRE_REASON = '날짜 경과로 자동 취소'
+
+
+def _today_kst():
+    return datetime.datetime.now(_KST).strftime('%Y-%m-%d')
+
+
+def _expire_stale_pending(cur):
+    """날짜가 지났는데 아직 '선택'(대기중) 상태로 남은 건을 '취소'로 굳힌다.
+    (화면은 effectiveMeetingStatus() 로 이미 '취소'처럼 보여주고 있었는데 DB 값은 그대로였음
+    — 그래서 날짜 범위 필터와 무관하게 노출되는 MEETST=1 예외에 영원히 걸려 있었다.)"""
+    cur.execute(
+        "UPDATE CHOIMEETSCHEDULE"
+        "   SET MEETST = 2, CANCELRS = COALESCE(NULLIF(CANCELRS, ''), %s)"
+        " WHERE DEL_YN = 'N' AND MEETST = 1"
+        "   AND MEET_DT IS NOT NULL AND MEET_DT < CURDATE()",
+        (AUTO_EXPIRE_REASON,),
+    )
 
 
 def _date_range():
@@ -21,7 +46,8 @@ def _date_range():
 def meeting_upcoming():
     # 기본: 어제(-1일) ~ 이후 2주(+14일). from/to 쿼리로 기간 지정 가능.
     rng_sql, rng_params = _date_range()
-    with db_cursor() as cur:
+    with db_cursor(commit=True) as cur:
+        _expire_stale_pending(cur)
         where = " WHERE m.DEL_YN = 'N' AND m.MEET_DT IS NOT NULL"
         if rng_sql:
             where += rng_sql
@@ -40,7 +66,8 @@ def meeting_schedule():
     #   '선택' 은 처리해야 할 항목이라 기간과 무관하게 노출.
     frm = (request.args.get('from') or '').strip()
     to  = (request.args.get('to') or '').strip()
-    with db_cursor() as cur:
+    with db_cursor(commit=True) as cur:
+        _expire_stale_pending(cur)
         where = (" WHERE m.DEL_YN = 'N' AND h.DEL_YN = 'N'"
                  "   AND (h.PRG IS NULL OR h.PRG <> '중단')")
         params = []
@@ -120,11 +147,10 @@ def meeting_update(mid):
     sets, vals = build_update(col_map, body)
     if not sets:
         return jsonify({'message': '변경 항목 없음'}), 400
-    vals.append(mid)
     with db_cursor(commit=True) as cur:
         row = None
         if 'meetDt' in body:
-            cur.execute('SELECT HIREID, SEQ FROM CHOIMEETSCHEDULE WHERE NTT_ID=%s', (mid,))
+            cur.execute('SELECT HIREID, SEQ, MEETST, CANCELRS FROM CHOIMEETSCHEDULE WHERE NTT_ID=%s', (mid,))
             row = cur.fetchone()
             meet_dt = body.get('meetDt') or None
             # 같은 대상자는 첫만남/단계만남 구분 없이 같은 날짜에 두 건 이상 등록할 수 없음 (자기 자신은 제외).
@@ -137,6 +163,15 @@ def meeting_update(mid):
                 if cur.fetchone():
                     return jsonify({'message': f'{meet_dt} 에 이미 만남 일정이 등록되어 있습니다.'}), 400
 
+            # 날짜 경과로 자동 취소됐던 건을 다시 오늘 이후 날짜로 고치면 선택(대기중)으로 되돌린다.
+            # meetSt 를 사용자가 같이 보냈으면(명시적으로 상태도 바꾼 경우) 그 값을 그대로 따르고 건드리지 않음.
+            if (row and 'meetSt' not in body and row['MEETST'] == 2
+                    and row['CANCELRS'] == AUTO_EXPIRE_REASON
+                    and meet_dt and meet_dt >= _today_kst()):
+                sets += ['`MEETST`=%s', '`CANCELRS`=%s']
+                vals += [1, '']
+
+        vals.append(mid)
         cur.execute(f'UPDATE CHOIMEETSCHEDULE SET {",".join(sets)} WHERE NTT_ID=%s', vals)
         # 첫만남(SEQ=1) 날짜 변경 시, 섭외자 등록 시점에 CHOIHIRE 에 복제해둔 MEET_DATE 도 함께 맞춘다.
         # 안 맞추면 섭외자 목록/TM현황 탭엔 옛 날짜가 그대로 남아 일정 목록 탭과 서로 다른 날짜가 보임.
