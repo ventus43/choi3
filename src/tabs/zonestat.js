@@ -43,12 +43,24 @@ function cacheEls() {
   els.fcount   = document.getElementById('zonestat-filtered-count');
 }
 
-/* 해당 구역: 인도구역 + (섬김구역 있으면 섬김구역, 없으면 교사구역). 중복되면 하나로. */
+const hasVal = (v) => v !== '' && v != null;
+
+/* 그외(외부 인원) 여부: 인도/섬김/교사 중 이름은 있는데 구역이 비어 있는 역할이 하나라도 있으면 true.
+   (src/tabs/outreach.js 의 "그외" 체크가 저장하는 형태 — 구역을 비워서 표현) */
+function hasEtc(e) {
+  return (hasVal(e.indo) && !hasVal(e.inGu))
+    || (hasVal(e.seomgim) && !hasVal(e.sumGu))
+    || (hasVal(e.gyosa) && !hasVal(e.gyoGu));
+}
+
+/* 해당 구역: 인도구역 + (섬김구역 있으면 섬김구역, 없으면 교사구역). 중복되면 하나로.
+   단, 인/섬/교 중 하나라도 그외(외부 인원)면 인도구역만 인정하고 나머지 구역은 집계에서 뺀다
+   — 외부 인원 몫은 어느 구역에도 배정하지 않는다. */
 function personZones(e) {
-  const has = (v) => v !== '' && v != null;
+  if (hasEtc(e)) return hasVal(e.inGu) ? [String(e.inGu)] : [];
   const zones = [];
-  if (has(e.inGu)) zones.push(String(e.inGu));
-  const second = has(e.sumGu) ? String(e.sumGu) : (has(e.gyoGu) ? String(e.gyoGu) : null);
+  if (hasVal(e.inGu)) zones.push(String(e.inGu));
+  const second = hasVal(e.sumGu) ? String(e.sumGu) : (hasVal(e.gyoGu) ? String(e.gyoGu) : null);
   if (second && !zones.includes(second)) zones.push(second);
   return zones;
 }
@@ -97,7 +109,7 @@ function buildData() {
     allEntries.push({
       statusKey: statusKeyOf(p.status),
       zones: pZones,
-      score: pZones.length === 2 ? 0.5 : 1,
+      score: (hasEtc(p) || pZones.length === 2) ? 0.5 : 1,
       name: p.name,
       date: fmtDate(latestDate.get(p.id)),
       ct: p.ct || '',
